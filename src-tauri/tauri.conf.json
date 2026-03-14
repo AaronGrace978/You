@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicoritschel/tauri-v2-schema/refs/heads/main/schema.json",
+  "productName": "You",
+  "version": "1.0.0",
+  "identifier": "com.you.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "You",
+        "width": 1100,
+        "height": 750,
+        "minWidth": 600,
+        "minHeight": 500,
+        "center": true,
+        "decorations": true,
+        "resizable": true,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.openai.com https://api.anthropic.com https://api.elevenlabs.io https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; script-src 'self'; worker-src 'self' blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "targets": ["nsis", "msi"],
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico",
+        "headerImage": null,
+        "sidebarImage": null
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    }
+  }
+}
