@@ -5,7 +5,9 @@
 <h1 align="center">You</h1>
 
 <p align="center">
-  <em>"The wound is the place where the Light enters you." — Rumi</em>
+  <em>"In the dark night of the soul, bright flows the river of God."</em>
+  <br />
+  <strong>— Saint John of the Cross</strong>
 </p>
 
 <p align="center">
@@ -15,6 +17,22 @@
 <br />
 
 ---
+
+<br />
+
+## The Dark Night
+
+In the 16th century, a Spanish mystic named Saint John of the Cross wrote about a journey he called *La Noche Oscura* — the Dark Night of the Soul. It wasn't about despair. It was about what happens when everything you relied on is stripped away, and you're left alone in the dark with nothing but yourself.
+
+He wrote that the darkness is not a punishment. It is a passage.
+
+That the soul must pass through the night to reach the dawn. That the very emptiness you feel is the space being made for something greater to enter. That the river of God flows brightest in the places where there is no other light.
+
+**You** was built in that spirit.
+
+Not to fix you. Not to diagnose you. Not to rush you toward the light before you're ready.
+
+But to sit with you in the dark — and to stay.
 
 <br />
 
@@ -34,7 +52,9 @@ You are not broken. You were never broken. You were just never given the space t
 
 I was burned with cigarettes as a child. I was hurt, again and again, by the people closest to me. Therapy told me to organize my pain. I wanted to weaponize it — for good.
 
-Millions of people walk through fire every day. Some fall to it. Some rise above it. This was built for every single one of them.
+Saint John of the Cross was imprisoned in a cell so small he couldn't stand. He was beaten. Starved. Left in total darkness for months. And in that darkness, he wrote some of the most luminous poetry in human history. He understood something that most people never learn — that suffering isn't the end of the story. It's the middle.
+
+Millions of people are in the middle of their story right now. Walking through fire every day. Some fall to it. Some rise above it. This was built for every single one of them.
 
 This is not a chatbot. This is not therapy. This is not another AI product chasing money or hype.
 
@@ -50,7 +70,7 @@ This is my final project in AI. Because I realized the only thing worth building
 
 - **Relational memory** — tracks emotional patterns, remembers what matters to you across conversations
 - **Crisis awareness** — recognizes when you might be in danger and gently offers real resources
-- **Voice mode** — speak naturally, like talking to someone who's actually listening (ElevenLabs + Web Speech API)
+- **Voice mode** — speak naturally, like talking to someone who's actually listening
 - **Multiple AI providers** — Ollama (local & cloud), OpenAI, Anthropic — your choice, your privacy
 - **File & PDF support** — share documents, images, code — whatever you need to talk through
 - **Dark & light themes** — because sometimes the darkness outside is enough
@@ -111,11 +131,13 @@ For voice mode, add your [ElevenLabs](https://elevenlabs.io) API key in Settings
 
 ## The philosophy
 
+> *"To reach the dawn, you must pass through the night."*
+
 Most AI is built to be impressive. **You** is built to be *present*.
 
 There is no onboarding funnel. No premium tier. No data harvesting. No engagement metrics.
 
-There is just a space — quiet, warm, and patient — that exists for the sole purpose of letting you be heard.
+There is just a space — quiet, warm, and patient — that exists for the sole purpose of letting you be heard. Inspired by the mystic tradition of Saint John of the Cross, who taught that the darkest passages of the soul are not dead ends but doorways — this app was built on the belief that no one should have to walk through the night alone.
 
 Whatever you carry, you can set it down here.
 
@@ -125,7 +147,9 @@ Whatever you carry, you can set it down here.
 
 <p align="center">
   <br />
-  Built with love, from pain, for you.
+  <em>Built with love, from pain, for you.</em>
+  <br />
+  <em>Inspired by the Dark Night of the Soul.</em>
   <br />
   <br />
   <strong>Aaron Grace</strong>

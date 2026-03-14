@@ -37,10 +37,10 @@ export default function Gateway() {
           }`}
         >
           <p className="font-display italic text-2xl md:text-3xl text-warm-50/90 leading-relaxed">
-            "The wound is the place where the Light enters you."
+            "In the dark night of the soul, bright flows the river of God."
           </p>
           <p className="font-body text-sm text-muted mt-4 tracking-wide">
-            — Rumi
+            — Saint John of the Cross
           </p>
         </div>
 
