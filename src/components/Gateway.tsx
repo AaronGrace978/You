@@ -23,7 +23,7 @@ export default function Gateway() {
 
   return (
     <div
-      className={`h-full w-full overflow-y-auto transition-opacity duration-700 ${
+      className={`h-full w-full overflow-y-auto safe-top safe-x transition-opacity duration-700 ${
         exiting ? "opacity-0" : "opacity-100"
       }`}
     >

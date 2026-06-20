@@ -14,6 +14,40 @@
          system's, or the status bar shows a mismatched line above the content. -->
     <meta name="theme-color" content="#09090f" />
 
+    <!-- Paint the viewport immediately — prevents white gaps in installed PWAs -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background-color: #09090f;
+      }
+      html[data-theme="light"],
+      html[data-theme="light"] body {
+        background-color: #f8f5f0;
+      }
+    </style>
+    <script>
+      (function () {
+        var COLORS = { dark: "#09090f", light: "#f8f5f0" };
+        var theme = "dark";
+        try {
+          var raw = localStorage.getItem("you-app-state");
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed.state && parsed.state.theme) theme = parsed.state.theme;
+          }
+        } catch (_) {}
+        var color = COLORS[theme] || COLORS.dark;
+        var root = document.documentElement;
+        root.setAttribute("data-theme", theme);
+        root.style.colorScheme = theme;
+        root.style.backgroundColor = color;
+        document.body.style.backgroundColor = color;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", color);
+      })();
+    </script>
+
     <!-- Installable on phones (Add to Home Screen) -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/icons/icon-64.png" />
@@ -21,7 +55,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="You" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />

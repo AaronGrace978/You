@@ -4,6 +4,7 @@ import { buildSystemPrompt } from "../core/soul";
 import { chat } from "../core/providers";
 import { rememberMessage, getRelationalContext } from "../core/memory";
 import { normalizeElevenLabsApiKey } from "../core/voice";
+import { applyThemeChrome } from "../core/theme-chrome";
 
 export interface Attachment {
   name: string;
@@ -86,7 +87,7 @@ export const useStore = create<AppState>()(
       toggleTheme: () =>
         set((s) => {
           const next = s.theme === "dark" ? "light" : "dark";
-          document.documentElement.setAttribute("data-theme", next);
+          applyThemeChrome(next);
           return { theme: next };
         }),
 
@@ -224,7 +225,7 @@ export const useStore = create<AppState>()(
       onRehydrateStorage: () => {
         return (state?: AppState) => {
           if (state) {
-            document.documentElement.setAttribute("data-theme", state.theme);
+            applyThemeChrome(state.theme);
             const normalizedKey = normalizeElevenLabsApiKey(state.elevenlabsApiKey);
             if (normalizedKey !== state.elevenlabsApiKey) {
               useStore.setState({ elevenlabsApiKey: normalizedKey });

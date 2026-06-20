@@ -148,7 +148,7 @@ export default function Sanctuary() {
 
   return (
     <div className={`h-full w-full flex flex-col transition-all duration-700 ${entered ? "opacity-100" : "opacity-0"}`}>
-      <header className="flex items-center justify-between px-6 py-4 border-b border-warm-400/5">
+      <header className="safe-top safe-x flex items-center justify-between px-6 py-4 border-b border-warm-400/5">
         <h2 className="font-display text-lg text-warm-50 tracking-wide">You</h2>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
