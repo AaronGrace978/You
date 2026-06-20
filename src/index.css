@@ -32,15 +32,15 @@
   }
 
   html, body, #root {
-    height: 100%;
     width: 100%;
+    height: 100%;
+    height: 100dvh;
+    min-height: -webkit-fill-available;
     overflow: hidden;
   }
 
-  /* Dynamic viewport height so mobile browser toolbars don't clip the UI.
-     Ignored by browsers without dvh support, which fall back to 100%. */
-  #root {
-    height: 100dvh;
+  html {
+    color-scheme: dark light;
   }
 
   body {
@@ -51,6 +51,8 @@
     cursor: default;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+    /* Prevent pull-to-refresh from stealing scroll on mobile */
+    touch-action: manipulation;
   }
 }
 
@@ -334,9 +336,25 @@ select.input-field {
   -webkit-user-select: text;
 }
 
-/* Honor safe areas (notches / home indicator) on phones. */
+/* Full-screen app shell — edge-to-edge on phones, honors notch & home bar */
+.app-shell {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+/* Extra bottom room for chat input above the home indicator */
 .safe-bottom {
-  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
 }
 
 /* Larger, finger-friendly tap targets on touch devices. */

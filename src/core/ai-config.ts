@@ -70,3 +70,18 @@ export function isHostedApp(): boolean {
   const h = window.location.hostname;
   return h.includes("github.io") || h.includes("pages.dev");
 }
+
+/** True when opened from home screen / installed PWA (no browser chrome). */
+export function isStandaloneApp(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+export function isMobileDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
