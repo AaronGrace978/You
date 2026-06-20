@@ -375,6 +375,286 @@ select.input-field {
   }
 }
 
+/* ===== VOICE MODE — immersive companion space ===== */
+
+.vm-root {
+  /* Always an immersive night space — intimate and focused — regardless of app theme. */
+  --c-deep: 9 9 15;
+  --c-surface: 18 18 24;
+  --c-elevated: 26 26 34;
+  --c-text: 252 250 247;
+  --c-muted: 178 170 160;
+  --c-accent: 222 182 138;
+
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+  background:
+    radial-gradient(135% 120% at 50% -15%, rgb(var(--c-surface) / 0.9), transparent 55%),
+    radial-gradient(120% 130% at 50% 120%, rgb(var(--c-accent) / 0.1), transparent 55%),
+    rgb(var(--c-deep));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.vm-aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  opacity: 0.55;
+  will-change: transform;
+}
+.vm-aurora-1 {
+  width: 62vmin; height: 62vmin; left: -12vmin; top: -10vmin;
+  background: radial-gradient(circle, rgb(var(--c-accent) / 0.28), transparent 70%);
+  animation: vmDrift1 19s ease-in-out infinite;
+}
+.vm-aurora-2 {
+  width: 56vmin; height: 56vmin; right: -14vmin; bottom: -10vmin;
+  background: radial-gradient(circle, rgba(184, 121, 122, 0.24), transparent 70%);
+  animation: vmDrift2 23s ease-in-out infinite;
+}
+.vm-aurora-3 {
+  width: 42vmin; height: 42vmin; right: 8vmin; top: 4vmin;
+  background: radial-gradient(circle, rgb(var(--c-accent) / 0.14), transparent 70%);
+  animation: vmDrift1 27s ease-in-out 3s infinite;
+}
+
+.vm-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 120% at 50% 45%, transparent 52%, rgb(var(--c-deep) / 0.6) 100%);
+}
+
+.vm-orb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(176px, 44vmin, 300px);
+  height: clamp(176px, 44vmin, 300px);
+}
+
+.vm-halo {
+  position: absolute;
+  inset: -16%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(var(--c-accent) / 0.38), transparent 64%);
+  filter: blur(26px);
+  animation: vmHalo 4.5s ease-in-out infinite;
+}
+.vm-halo.is-error {
+  background: radial-gradient(circle, rgba(220, 90, 90, 0.4), transparent 64%);
+}
+.vm-halo.is-speaking {
+  animation-duration: 1.6s;
+}
+
+.vm-core {
+  position: relative;
+  width: 60%;
+  height: 60%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.5), transparent 42%),
+    radial-gradient(circle at 50% 56%, rgb(var(--c-accent) / 0.95), rgb(var(--c-accent) / 0.35) 58%, rgb(var(--c-accent) / 0.08) 80%);
+  box-shadow:
+    0 0 60px rgb(var(--c-accent) / 0.45),
+    0 0 130px rgb(var(--c-accent) / 0.22),
+    inset 0 -12px 32px rgba(0, 0, 0, 0.28),
+    inset 0 10px 26px rgba(255, 255, 255, 0.22);
+  animation: vmBreathe 4.5s ease-in-out infinite;
+  transition: background 0.6s ease, box-shadow 0.6s ease, transform 0.4s ease;
+}
+.vm-core::after {
+  content: "";
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.vm-core.is-listening { animation-duration: 2.4s; }
+.vm-core.is-speaking { animation-duration: 1.5s; }
+.vm-core.is-paused {
+  filter: saturate(0.55) brightness(0.8);
+  animation-play-state: paused;
+}
+.vm-core.is-error {
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.4), transparent 42%),
+    radial-gradient(circle at 50% 56%, rgba(220, 90, 90, 0.92), rgba(220, 90, 90, 0.3) 58%, transparent 80%);
+  box-shadow:
+    0 0 60px rgba(220, 90, 90, 0.4),
+    inset 0 -12px 32px rgba(0, 0, 0, 0.28),
+    inset 0 10px 26px rgba(255, 255, 255, 0.18);
+}
+
+.vm-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--c-accent) / 0.45);
+  animation: vmRipple 2.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  pointer-events: none;
+}
+
+.vm-spinner {
+  position: absolute;
+  inset: -5%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 58%,
+    rgb(var(--c-accent) / 0.55) 86%,
+    transparent 100%
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  animation: vmSpin 1.5s linear infinite;
+  pointer-events: none;
+}
+
+.vm-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 38%;
+}
+.vm-wave span {
+  display: block;
+  width: 5px;
+  height: 100%;
+  border-radius: 999px;
+  transform-origin: center;
+  background: linear-gradient(to top, rgb(var(--c-accent) / 0.7), rgba(255, 255, 255, 0.95));
+  animation: vmBar 0.9s ease-in-out infinite;
+}
+
+.vm-glyph { color: rgba(255, 255, 255, 0.85); }
+
+.vm-status {
+  font-family: "Cormorant", serif;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  color: rgb(var(--c-text));
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.vm-dots span {
+  display: inline-block;
+  animation: vmDot 1.4s ease-in-out infinite;
+}
+.vm-dots span:nth-child(2) { animation-delay: 0.2s; }
+.vm-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+.vm-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  border: 1px solid rgb(var(--c-text) / 0.14);
+  color: rgb(var(--c-text) / 0.7);
+  background: rgb(var(--c-text) / 0.05);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+.vm-icon-btn:hover {
+  color: rgb(var(--c-text));
+  border-color: rgb(var(--c-text) / 0.3);
+  transform: translateY(-2px);
+}
+.vm-icon-btn.is-active {
+  color: rgb(var(--c-accent));
+  border-color: rgb(var(--c-accent) / 0.4);
+  background: rgb(var(--c-accent) / 0.12);
+}
+
+.vm-end-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  color: #fff;
+  background: radial-gradient(circle at 50% 35%, #e8716f, #c8413f);
+  box-shadow: 0 10px 30px rgba(200, 65, 63, 0.4), inset 0 2px 8px rgba(255, 255, 255, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.vm-end-btn:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 14px 40px rgba(200, 65, 63, 0.5), inset 0 2px 8px rgba(255, 255, 255, 0.3);
+}
+
+.vm-ctrl-label {
+  font-family: "Karla", sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--c-text) / 0.45);
+}
+
+.vm-wordmark {
+  font-family: "Cormorant", serif;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  color: rgb(var(--c-text) / 0.4);
+}
+
+@keyframes vmDrift1 {
+  0%, 100% { transform: translate(-6%, -4%) scale(1); }
+  50% { transform: translate(8%, 6%) scale(1.12); }
+}
+@keyframes vmDrift2 {
+  0%, 100% { transform: translate(6%, 4%) scale(1.08); }
+  50% { transform: translate(-7%, -5%) scale(0.94); }
+}
+@keyframes vmHalo {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.08); }
+}
+@keyframes vmBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+@keyframes vmRipple {
+  0% { transform: scale(0.92); opacity: 0.5; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@keyframes vmSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes vmBar {
+  0%, 100% { transform: scaleY(0.32); }
+  50% { transform: scaleY(1); }
+}
+@keyframes vmDot {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
 /* Respect users who prefer reduced motion — calm the orbs and animations. */
 @media (prefers-reduced-motion: reduce) {
   *,

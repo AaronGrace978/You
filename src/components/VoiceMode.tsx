@@ -4,6 +4,7 @@ import {
   startListening,
   stopListening,
   speakAloud,
+  stopSpeaking,
   stopAll,
   unlockAudioForPlayback,
   isSpeechRecognitionSupported,
@@ -13,7 +14,7 @@ import { chat } from "../core/providers";
 import { buildSystemPrompt } from "../core/soul";
 import { getRelationalContext, rememberMessage } from "../core/memory";
 
-type VoiceState = "listening" | "processing" | "speaking" | "error";
+type VoiceState = "listening" | "processing" | "speaking" | "error" | "paused";
 
 export default function VoiceMode() {
   const setVoiceMode = useStore((s) => s.setVoiceMode);
@@ -34,11 +35,13 @@ export default function VoiceMode() {
   const [response, setResponse] = useState("");
   const [hint, setHint] = useState("");
   const [entered, setEntered] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   const conversationRef = useRef<{ role: string; content: string }[]>([]);
   const activeRef = useRef(true);
   const busyRef = useRef(false);
   const handlingRef = useRef(false);
+  const pausedRef = useRef(false);
 
   const configRef = useRef({
     provider,
@@ -77,6 +80,24 @@ export default function VoiceMode() {
     stopAll();
     setVoiceMode(false);
   }, [setVoiceMode]);
+
+  const togglePause = useCallback(() => {
+    const next = !pausedRef.current;
+    pausedRef.current = next;
+    setPaused(next);
+
+    if (next) {
+      stopListening();
+      stopSpeaking();
+      setState("paused");
+      setTranscript("");
+    } else {
+      setHint("");
+      if (!busyRef.current && !handlingRef.current) {
+        beginListeningRef.current();
+      }
+    }
+  }, []);
 
   const processUtterance = useCallback(async (text: string) => {
     if (handlingRef.current || !text.trim()) return;
@@ -157,10 +178,12 @@ export default function VoiceMode() {
       setTranscript("");
       setResponse("");
 
-      if (activeRef.current) {
+      if (activeRef.current && !pausedRef.current) {
         // Brief pause so the mic doesn't pick up speaker echo
         await pause(600);
         beginListeningRef.current();
+      } else if (pausedRef.current) {
+        setState("paused");
       }
     }
   }, []);
@@ -168,7 +191,7 @@ export default function VoiceMode() {
   const beginListeningRef = useRef<() => void>(() => {});
 
   beginListeningRef.current = () => {
-    if (!activeRef.current || busyRef.current || handlingRef.current) return;
+    if (!activeRef.current || busyRef.current || handlingRef.current || pausedRef.current) return;
 
     if (!isSpeechRecognitionSupported()) {
       setState("error");
@@ -209,95 +232,186 @@ export default function VoiceMode() {
     };
   }, []);
 
-  const statusText = {
-    listening: "Listening…",
-    processing: "Thinking…",
-    speaking: "Speaking…",
-    error: "Retrying…",
+  const statusText: Record<VoiceState, string> = {
+    listening: "Listening",
+    processing: "Thinking",
+    speaking: "Speaking",
+    error: "Reconnecting",
+    paused: "Paused",
   };
+
+  const showDots = state === "listening" || state === "processing" || state === "speaking";
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center transition-opacity duration-500 ${
-        entered ? "opacity-100" : "opacity-0"
-      }`}
-      style={{ background: "rgba(9, 9, 15, 0.97)" }}
+      className={`vm-root transition-opacity duration-700 ${entered ? "opacity-100" : "opacity-0"}`}
     >
-      <button
-        onClick={handleClose}
-        className="absolute w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white/80 hover:border-white/30 transition-all cursor-pointer"
-        style={{
-          top: "max(1.5rem, env(safe-area-inset-top))",
-          right: "max(1.5rem, env(safe-area-inset-right))",
-        }}
+      <div className="vm-aurora vm-aurora-1" />
+      <div className="vm-aurora vm-aurora-2" />
+      <div className="vm-aurora vm-aurora-3" />
+      <div className="vm-vignette" />
+
+      {/* Top bar */}
+      <div
+        className="absolute left-0 right-0 flex items-center justify-between px-5"
+        style={{ top: "max(1.25rem, env(safe-area-inset-top))" }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-
-      <div className="relative flex items-center justify-center mb-12">
-        {state === "listening" && (
-          <>
-            <div className="absolute w-48 h-48 rounded-full border border-warm-400/10 animate-voice-ring" />
-            <div
-              className="absolute w-48 h-48 rounded-full border border-warm-400/10 animate-voice-ring"
-              style={{ animationDelay: "0.7s" }}
-            />
-          </>
-        )}
-
-        <div
-          className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 ${
-            state === "listening"
-              ? "animate-voice-listening bg-warm-400/20 shadow-[0_0_60px_rgba(201,149,107,0.25)]"
-              : state === "processing"
-                ? "animate-voice-pulse bg-warm-400/15 shadow-[0_0_40px_rgba(201,149,107,0.15)]"
-                : state === "speaking"
-                  ? "animate-voice-orb bg-warm-400/25 shadow-[0_0_80px_rgba(201,149,107,0.3)]"
-                  : "bg-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.2)]"
-          }`}
+        <span className="vm-wordmark text-lg select-none">You</span>
+        <button
+          onClick={handleClose}
+          aria-label="Close voice mode"
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer"
+          style={{ color: "rgb(var(--c-text) / 0.45)" }}
         >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Central presence */}
+      <div className="flex flex-col items-center gap-7 px-6 w-full">
+        <div
+          className={`vm-orb transition-transform duration-700 ${entered ? "scale-100" : "scale-90"}`}
+        >
+          <div className={`vm-halo ${state === "error" ? "is-error" : ""} ${state === "speaking" ? "is-speaking" : ""}`} />
+
+          {state === "listening" && (
+            <>
+              <span className="vm-ripple" />
+              <span className="vm-ripple" style={{ animationDelay: "1.4s" }} />
+            </>
+          )}
+          {state === "processing" && <div className="vm-spinner" />}
+
           <div
-            className={`w-16 h-16 rounded-full ${
-              state === "error" ? "bg-red-500/30" : "bg-warm-400/20"
+            className={`vm-core ${
+              state === "error"
+                ? "is-error"
+                : state === "paused"
+                  ? "is-paused"
+                  : state === "speaking"
+                    ? "is-speaking"
+                    : state === "listening"
+                      ? "is-listening"
+                      : ""
             }`}
-          />
+          >
+            {state === "speaking" && (
+              <div className="vm-wave">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <span
+                    key={i}
+                    style={{
+                      animationDelay: `${i * 0.12}s`,
+                      animationDuration: `${0.7 + (i % 3) * 0.18}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+            {state === "paused" && (
+              <svg className="vm-glyph" width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="5" width="4" height="14" rx="1.5" />
+                <rect x="14" y="5" width="4" height="14" rx="1.5" />
+              </svg>
+            )}
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h2 className="vm-status">
+            {statusText[state]}
+            {showDots && (
+              <span className="vm-dots" aria-hidden>
+                <span>.</span>
+                <span>.</span>
+                <span>.</span>
+              </span>
+            )}
+          </h2>
+
+          {hint && (
+            <p
+              className="font-body text-xs max-w-xs leading-relaxed px-4"
+              style={{ color: "rgb(var(--c-text) / 0.5)" }}
+            >
+              {hint}
+            </p>
+          )}
+        </div>
+
+        {/* Live caption */}
+        <div className="min-h-[3.5rem] max-h-[28vh] overflow-y-auto w-full max-w-lg text-center px-2">
+          {(state === "listening" || state === "paused") && transcript && (
+            <p
+              className="font-body text-base leading-relaxed message-appear selectable"
+              style={{ color: "rgb(var(--c-text) / 0.9)" }}
+            >
+              {transcript}
+            </p>
+          )}
+          {state === "processing" && transcript && (
+            <p
+              className="font-body text-sm leading-relaxed italic message-appear selectable"
+              style={{ color: "rgb(var(--c-text) / 0.55)" }}
+            >
+              “{transcript}”
+            </p>
+          )}
+          {state === "speaking" && response && (
+            <p
+              className="font-body text-base leading-relaxed message-appear selectable"
+              style={{ color: "rgb(var(--c-text) / 0.92)" }}
+            >
+              {response.length > 320 ? response.slice(0, 320) + "…" : response}
+            </p>
+          )}
         </div>
       </div>
 
-      <p className="font-body text-sm tracking-[0.15em] uppercase text-white/70 mb-2">
-        {statusText[state]}
-      </p>
-
-      {hint && (
-        <p className="font-body text-[11px] text-white/45 max-w-xs text-center px-6 mb-3 leading-relaxed">
-          {hint}
-        </p>
-      )}
-
-      <div className="max-w-md px-8 text-center min-h-[3rem]">
-        {state === "listening" && transcript && (
-          <p className="font-body text-white/80 text-base leading-relaxed">{transcript}</p>
-        )}
-        {state === "processing" && transcript && (
-          <p className="font-body text-white/50 text-sm leading-relaxed italic">"{transcript}"</p>
-        )}
-        {state === "speaking" && response && (
-          <p className="font-body text-white/80 text-base leading-relaxed">
-            {response.length > 200 ? response.slice(0, 200) + "…" : response}
-          </p>
-        )}
-      </div>
-
-      <button
-        onClick={handleClose}
-        className="absolute px-8 py-3 rounded-full border border-white/10 font-body text-xs tracking-[0.2em] uppercase text-white/50 hover:text-white/80 hover:border-white/30 transition-all cursor-pointer"
-        style={{ bottom: "max(3rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
+      {/* Bottom controls */}
+      <div
+        className="absolute flex items-end justify-center gap-8"
+        style={{ bottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
       >
-        End
-      </button>
+        <div className="flex flex-col items-center gap-2">
+          <button
+            onClick={togglePause}
+            aria-label={paused ? "Resume conversation" : "Pause microphone"}
+            className={`vm-icon-btn ${paused ? "is-active" : ""}`}
+          >
+            {paused ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" x2="12" y1="19" y2="22" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="2" y1="2" x2="22" y2="22" />
+                <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2" />
+                <path d="M5 10v2a7 7 0 0 0 12 5" />
+                <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33" />
+                <path d="M9 9v3a3 3 0 0 0 5.12 2.12" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+            )}
+          </button>
+          <span className="vm-ctrl-label">{paused ? "Resume" : "Mute"}</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-2">
+          <button onClick={handleClose} aria-label="End conversation" className="vm-end-btn">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M21 15.46l-5.27-.61-2.52 2.52a15.05 15.05 0 0 1-6.59-6.59l2.53-2.53L8.54 3H3.03C2.45 13.18 10.82 21.55 21 20.97v-5.51z" transform="rotate(135 12 12)" />
+            </svg>
+          </button>
+          <span className="vm-ctrl-label">End</span>
+        </div>
+      </div>
     </div>
   );
 }
