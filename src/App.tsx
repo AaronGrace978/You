@@ -6,7 +6,7 @@ import Sanctuary from "./components/Sanctuary";
 import Settings from "./components/Settings";
 import VoiceMode from "./components/VoiceMode";
 import InstallHint from "./components/InstallHint";
-import { applyThemeChrome } from "./core/theme-chrome";
+import { applyThemeChrome, watchThemeChrome } from "./core/theme-chrome";
 
 export default function App() {
   const view = useStore((s) => s.view);
@@ -15,10 +15,12 @@ export default function App() {
 
   useEffect(() => {
     applyThemeChrome(theme);
+    return watchThemeChrome(theme);
   }, [theme]);
 
   return (
     <div className="app-shell">
+      <div className="pwa-top-bleed" aria-hidden />
       <div className="app-bg" aria-hidden />
       <div className="app-content h-full w-full">
       <InstallHint />

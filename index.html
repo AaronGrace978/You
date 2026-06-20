@@ -44,7 +44,18 @@
         root.style.backgroundColor = color;
         document.body.style.backgroundColor = color;
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute("content", color);
+        if (meta) meta.remove();
+        meta = document.createElement("meta");
+        meta.name = "theme-color";
+        meta.content = color;
+        document.head.appendChild(meta);
+        var cs = document.querySelector('meta[name="color-scheme"]');
+        if (!cs) {
+          cs = document.createElement("meta");
+          cs.name = "color-scheme";
+          document.head.appendChild(cs);
+        }
+        cs.content = theme === "dark" ? "dark" : "light";
       })();
     </script>
 

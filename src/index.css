@@ -347,10 +347,44 @@ select.input-field {
 /* Always-on backdrop — paints under status bar / home indicator (fixes white gaps in PWAs) */
 .app-bg {
   position: fixed;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 0;
   background-color: rgb(var(--c-deep));
   transition: background-color 0.5s ease;
+  top: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+/* Extra top paint for installed Android PWAs — safe-area is often 0 but a gap remains */
+.pwa-top-bleed {
+  display: none;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .pwa-top-bleed {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9998;
+    pointer-events: none;
+    background-color: rgb(var(--c-deep));
+  }
+
+  .app-bg {
+    /* Bleed upward to cover the status-bar seam on Android */
+    top: calc(-1 * max(env(safe-area-inset-top, 0px), 28px));
+    min-height: calc(100% + max(env(safe-area-inset-top, 0px), 28px));
+    min-height: calc(100dvh + max(env(safe-area-inset-top, 0px), 28px));
+  }
+
+  .pwa-top-bleed {
+    height: max(env(safe-area-inset-top, 0px), 28px);
+  }
 }
 
 .app-content {
@@ -361,6 +395,14 @@ select.input-field {
 
 .safe-top {
   padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  background-color: rgb(var(--c-deep));
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .safe-top {
+    /* Android often reports 0 safe-area — reserve status-bar height anyway */
+    padding-top: max(0.75rem, env(safe-area-inset-top, 0px), 28px);
+  }
 }
 
 .safe-x {
