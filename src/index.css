@@ -37,12 +37,20 @@
     overflow: hidden;
   }
 
+  /* Dynamic viewport height so mobile browser toolbars don't clip the UI.
+     Ignored by browsers without dvh support, which fall back to 100%. */
+  #root {
+    height: 100dvh;
+  }
+
   body {
     font-family: "Karla", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
     cursor: default;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
   }
 }
 
@@ -236,4 +244,110 @@ select.input-field {
 
 .chat-input-wrap:focus-within {
   border-color: rgb(var(--c-accent) / 0.2);
+}
+
+/* markdown prose inside AI messages */
+.prose-you p { margin: 0.4em 0; }
+.prose-you p:first-child { margin-top: 0; }
+.prose-you p:last-child { margin-bottom: 0; }
+.prose-you strong { font-weight: 600; color: rgb(var(--c-text)); }
+.prose-you em { font-style: italic; }
+.prose-you ul, .prose-you ol { margin: 0.5em 0; padding-left: 1.5em; }
+.prose-you li { margin: 0.2em 0; }
+.prose-you code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85em;
+  background: rgb(var(--c-surface) / 0.8);
+  border: 1px solid rgb(var(--c-accent) / 0.08);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+.prose-you pre {
+  margin: 0.6em 0;
+  background: rgb(var(--c-surface) / 0.8);
+  border: 1px solid rgb(var(--c-accent) / 0.08);
+  border-radius: 0.5rem;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+}
+.prose-you pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82em;
+}
+.prose-you blockquote {
+  border-left: 2px solid rgb(var(--c-accent) / 0.3);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  font-style: italic;
+  color: rgb(var(--c-text) / 0.7);
+}
+.prose-you h1, .prose-you h2, .prose-you h3 {
+  font-weight: 600;
+  margin: 0.8em 0 0.3em;
+  color: rgb(var(--c-text));
+}
+.prose-you hr {
+  border: none;
+  border-top: 1px solid rgb(var(--c-accent) / 0.1);
+  margin: 0.8em 0;
+}
+.prose-you a {
+  color: rgb(var(--c-accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 0.8s ease-in-out infinite;
+}
+
+/* ===== MOBILE & ACCESSIBILITY ===== */
+
+/* Let people select and copy what's shared here (esp. long-press on mobile). */
+.prose-you,
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Honor safe areas (notches / home indicator) on phones. */
+.safe-bottom {
+  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+}
+
+/* Larger, finger-friendly tap targets on touch devices. */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+/* Prevent iOS from auto-zooming when focusing inputs (font must be >= 16px). */
+@media (max-width: 640px) {
+  .input-field,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Respect users who prefer reduced motion — calm the orbs and animations. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

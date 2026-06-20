@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, lazy, Suspense } from "react";
+import { useState, useRef, useEffect, lazy, Suspense, useCallback } from "react";
 import { useStore, type Message, type Attachment } from "../store";
+import Markdown from "react-markdown";
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
 
@@ -28,10 +29,43 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function exportConversation(messages: Message[], userName: string) {
+  const lines: string[] = [
+    "# You — Conversation Journal",
+    `*Exported ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}*`,
+    "",
+    "---",
+    "",
+  ];
+
+  for (const msg of messages) {
+    const time = new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const who = msg.role === "user" ? (userName || "You") : "You (AI)";
+    lines.push(`**${who}** — *${time}*`);
+    lines.push("");
+    lines.push(msg.content);
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+  }
+
+  lines.push("*Whatever you carry, you can set it down here.*");
+
+  const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `you-journal-${new Date().toISOString().slice(0, 10)}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Sanctuary() {
   const messages = useStore((s) => s.messages);
   const isStreaming = useStore((s) => s.isStreaming);
+  const streamingContent = useStore((s) => s.streamingContent);
   const sendMessage = useStore((s) => s.sendMessage);
+  const clearConversation = useStore((s) => s.clearConversation);
   const setView = useStore((s) => s.setView);
   const setVoiceMode = useStore((s) => s.setVoiceMode);
   const elevenlabsApiKey = useStore((s) => s.elevenlabsApiKey);
@@ -44,15 +78,16 @@ export default function Sanctuary() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    useStore.setState({ hasSeenLanding: true });
     const t = setTimeout(() => setEntered(true), 200);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamingContent]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
     if ((!text && pendingAttachments.length === 0) || isStreaming) return;
     const atts = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined;
@@ -71,7 +106,7 @@ export default function Sanctuary() {
     }
 
     await sendMessage(content, firstImage, atts);
-  };
+  }, [input, pendingAttachments, isStreaming, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -92,26 +127,14 @@ export default function Sanctuary() {
     if (!files) return;
 
     const newAttachments: Attachment[] = [];
-
     for (const file of Array.from(files)) {
       const type = classifyFile(file);
-
       if (type === "file") {
         const text = await readFileAsText(file);
-        newAttachments.push({
-          name: file.name,
-          type: "file",
-          data: text,
-          mimeType: file.type || "text/plain",
-        });
+        newAttachments.push({ name: file.name, type: "file", data: text, mimeType: file.type || "text/plain" });
       } else {
         const dataUrl = await readFileAsDataUrl(file);
-        newAttachments.push({
-          name: file.name,
-          type,
-          data: dataUrl,
-          mimeType: file.type,
-        });
+        newAttachments.push({ name: file.name, type, data: dataUrl, mimeType: file.type });
       }
     }
 
@@ -124,25 +147,33 @@ export default function Sanctuary() {
   };
 
   return (
-    <div
-      className={`h-full w-full flex flex-col transition-all duration-700 ${
-        entered ? "opacity-100" : "opacity-0"
-      }`}
-    >
+    <div className={`h-full w-full flex flex-col transition-all duration-700 ${entered ? "opacity-100" : "opacity-0"}`}>
       <header className="flex items-center justify-between px-6 py-4 border-b border-warm-400/5">
-        <h2 className="font-display text-lg text-warm-50/80 tracking-wide">
-          You
-        </h2>
-        <button
-          onClick={() => setView("settings")}
-          className="icon-btn"
-          title="Settings"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </button>
+        <h2 className="font-display text-lg text-warm-50/80 tracking-wide">You</h2>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <>
+              <button onClick={() => exportConversation(messages, userName)} className="icon-btn" title="Export journal">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </button>
+              <button onClick={clearConversation} className="icon-btn" title="New conversation">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+            </>
+          )}
+          <button onClick={() => setView("settings")} className="icon-btn" title="Settings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-0">
@@ -153,8 +184,7 @@ export default function Sanctuary() {
                 {userName ? `Welcome back, ${userName}` : "Hello"}
               </p>
               <p className="font-body text-sm text-muted/60 max-w-sm text-center leading-relaxed">
-                Whatever you carry, you can set it down here. Say anything — or
-                nothing at all.
+                Whatever you carry, you can set it down here. Say anything — or nothing at all.
               </p>
             </div>
           )}
@@ -163,7 +193,18 @@ export default function Sanctuary() {
             <MessageBubble key={msg.id} message={msg} />
           ))}
 
-          {isStreaming && (
+          {isStreaming && streamingContent && (
+            <div className="message-appear flex justify-start">
+              <div className="max-w-[85%] md:max-w-[75%] px-5 py-3.5 rounded-2xl rounded-bl-sm border border-warm-400/5 bg-surface/60">
+                <div className="prose-you font-body text-base leading-relaxed text-warm-50/80">
+                  <Markdown>{streamingContent}</Markdown>
+                  <span className="inline-block w-0.5 h-4 bg-warm-400/60 animate-blink ml-0.5 align-middle" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isStreaming && !streamingContent && (
             <div className="flex items-center gap-2 px-4 py-2">
               <div className="flex gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-warm-400/40 animate-breathe" />
@@ -177,7 +218,6 @@ export default function Sanctuary() {
         </div>
       </div>
 
-      {/* pending attachments */}
       {pendingAttachments.length > 0 && (
         <div className="px-4 md:px-0">
           <div className="max-w-2xl mx-auto">
@@ -185,23 +225,11 @@ export default function Sanctuary() {
               {pendingAttachments.map((att, i) => (
                 <div key={i} className="relative group">
                   {att.type === "image" ? (
-                    <img
-                      src={att.data}
-                      alt={att.name}
-                      className="h-16 w-16 object-cover rounded-lg border border-warm-400/10"
-                    />
+                    <img src={att.data} alt={att.name} className="h-16 w-16 object-cover rounded-lg border border-warm-400/10" />
                   ) : (
-                    <div
-                      className="h-16 px-3 flex items-center gap-2 rounded-lg border border-warm-400/10"
-                      style={{ background: "rgb(var(--c-surface) / 0.6)" }}
-                    >
+                    <div className="h-16 px-3 flex items-center gap-2 rounded-lg border border-warm-400/10" style={{ background: "rgb(var(--c-surface) / 0.6)" }}>
                       <FileTypeIcon type={att.type} />
-                      <span
-                        className="font-body text-xs max-w-[100px] truncate"
-                        style={{ color: "rgb(var(--c-text) / 0.7)" }}
-                      >
-                        {att.name}
-                      </span>
+                      <span className="font-body text-xs max-w-[100px] truncate" style={{ color: "rgb(var(--c-text) / 0.7)" }}>{att.name}</span>
                     </div>
                   )}
                   <button
@@ -221,28 +249,16 @@ export default function Sanctuary() {
         </div>
       )}
 
-      {/* input */}
-      <div className="px-4 md:px-0 pb-6 pt-2">
+      <div className="px-4 md:px-0 pt-2 safe-bottom">
         <div className="max-w-2xl mx-auto">
           <div className="chat-input-wrap relative flex items-end gap-2 backdrop-blur-sm rounded-2xl px-4 py-3">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="icon-btn"
-              title="Attach file"
-            >
+            <button onClick={() => fileInputRef.current?.click()} className="icon-btn" title="Attach file">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
               </svg>
             </button>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_TYPES}
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-            />
+            <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} multiple className="hidden" onChange={handleFileSelect} />
 
             <textarea
               ref={textareaRef}
@@ -255,11 +271,7 @@ export default function Sanctuary() {
             />
 
             {elevenlabsApiKey && (
-              <button
-                onClick={() => setVoiceMode(true)}
-                className="icon-btn"
-                title="Voice mode"
-              >
+              <button onClick={() => setVoiceMode(true)} className="icon-btn" title="Voice mode">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
@@ -293,54 +305,88 @@ function MessageBubble({ message }: { message: Message }) {
 
   return (
     <div className={`message-appear flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[85%] md:max-w-[75%] px-5 py-3.5 rounded-2xl font-body text-base leading-relaxed ${
-          isUser
-            ? "bg-warm-400/10 text-warm-50/90 rounded-br-sm"
-            : "bg-surface/60 text-warm-50/80 rounded-bl-sm border border-warm-400/5"
-        }`}
-      >
-        {message.image && (
-          <img
-            src={message.image}
-            alt=""
-            className="max-w-[240px] rounded-xl mb-2 border border-warm-400/5"
-          />
-        )}
+      <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[85%] md:max-w-[75%]`}>
+        <div
+          className={`px-5 py-3.5 rounded-2xl font-body text-base leading-relaxed ${
+            isUser
+              ? "bg-warm-400/10 text-warm-50/90 rounded-br-sm"
+              : "bg-surface/60 text-warm-50/80 rounded-bl-sm border border-warm-400/5"
+          }`}
+        >
+          {message.image && (
+            <img src={message.image} alt="" className="max-w-[240px] rounded-xl mb-2 border border-warm-400/5" />
+          )}
 
-        {message.attachments?.map((att, i) => (
-          <AttachmentBlock key={i} attachment={att} />
-        ))}
+          {message.attachments?.map((att, i) => (
+            <AttachmentBlock key={i} attachment={att} />
+          ))}
 
-        <p className="whitespace-pre-wrap">{message.content}</p>
+          {isUser ? (
+            <p className="whitespace-pre-wrap selectable">{message.content}</p>
+          ) : (
+            <div className="prose-you">
+              <Markdown>{message.content}</Markdown>
+            </div>
+          )}
+        </div>
+
+        {!isUser && message.content && <CopyButton text={message.content} />}
       </div>
     </div>
   );
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard may be unavailable (insecure context) — fail quietly
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="mt-1.5 ml-1 flex items-center gap-1 font-body text-[11px] text-muted/40 hover:text-warm-400/80 transition-colors cursor-pointer"
+      title={copied ? "Copied" : "Copy"}
+    >
+      {copied ? (
+        <>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Copied
+        </>
+      ) : (
+        <>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          Copy
+        </>
+      )}
+    </button>
+  );
+}
+
 function AttachmentBlock({ attachment }: { attachment: Attachment }) {
   if (attachment.type === "image") {
-    return (
-      <img
-        src={attachment.data}
-        alt={attachment.name}
-        className="max-w-[240px] rounded-xl mb-2 border border-warm-400/5"
-      />
-    );
+    return <img src={attachment.data} alt={attachment.name} className="max-w-[240px] rounded-xl mb-2 border border-warm-400/5" />;
   }
 
   if (attachment.type === "pdf") {
     return (
       <Suspense
         fallback={
-          <div
-            className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2"
-            style={{ background: "rgb(var(--c-surface) / 0.5)" }}
-          >
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2" style={{ background: "rgb(var(--c-surface) / 0.5)" }}>
             <FileTypeIcon type="pdf" />
-            <span className="font-body text-xs" style={{ color: "rgb(var(--c-muted))" }}>
-              Loading {attachment.name}...
-            </span>
+            <span className="font-body text-xs" style={{ color: "rgb(var(--c-muted))" }}>Loading {attachment.name}...</span>
           </div>
         }
       >
@@ -350,14 +396,9 @@ function AttachmentBlock({ attachment }: { attachment: Attachment }) {
   }
 
   return (
-    <div
-      className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2 border border-warm-400/5"
-      style={{ background: "rgb(var(--c-surface) / 0.5)" }}
-    >
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2 border border-warm-400/5" style={{ background: "rgb(var(--c-surface) / 0.5)" }}>
       <FileTypeIcon type="file" />
-      <span className="font-body text-xs" style={{ color: "rgb(var(--c-text) / 0.7)" }}>
-        {attachment.name}
-      </span>
+      <span className="font-body text-xs" style={{ color: "rgb(var(--c-text) / 0.7)" }}>{attachment.name}</span>
     </div>
   );
 }

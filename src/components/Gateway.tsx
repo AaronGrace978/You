@@ -23,11 +23,12 @@ export default function Gateway() {
 
   return (
     <div
-      className={`h-full w-full flex items-center justify-center transition-opacity duration-700 ${
+      className={`h-full w-full overflow-y-auto transition-opacity duration-700 ${
         exiting ? "opacity-0" : "opacity-100"
       }`}
     >
-      <div className="max-w-2xl mx-auto px-8 flex flex-col items-center gap-12">
+      <div className="min-h-full flex items-center justify-center">
+        <div className="max-w-2xl mx-auto px-6 sm:px-8 py-16 flex flex-col items-center gap-8 sm:gap-12">
         {/* epigraph */}
         <div
           className={`text-center transition-all duration-1000 ${
@@ -111,6 +112,7 @@ export default function Gateway() {
             continue
           </span>
         </button>
+        </div>
       </div>
     </div>
   );

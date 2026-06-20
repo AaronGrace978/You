@@ -19,8 +19,10 @@ export default function VoiceMode() {
   const model = useStore((s) => s.model);
   const apiKey = useStore((s) => s.apiKey);
   const ollamaUrl = useStore((s) => s.ollamaUrl);
+  const ollamaProxyUrl = useStore((s) => s.ollamaProxyUrl);
   const ollamaCloudUrl = useStore((s) => s.ollamaCloudUrl);
   const ollamaCloudApiKey = useStore((s) => s.ollamaCloudApiKey);
+  const ollamaVisionModel = useStore((s) => s.ollamaVisionModel);
   const userName = useStore((s) => s.userName);
   const elevenlabsApiKey = useStore((s) => s.elevenlabsApiKey);
   const elevenlabsVoiceId = useStore((s) => s.elevenlabsVoiceId);
@@ -72,13 +74,17 @@ export default function VoiceMode() {
 
           const aiResponse = await chat({
             provider,
-            model: model || "llama3.1",
+            model: model || "glm-5.2",
+            ollamaVisionModel,
             messages: [
               { role: "system", content: systemPrompt },
               ...conversationRef.current,
             ],
             apiKey: provider === "ollama-cloud" ? ollamaCloudApiKey : apiKey,
-            ollamaUrl: provider === "ollama-cloud" ? ollamaCloudUrl : ollamaUrl,
+            ollamaUrl,
+            ollamaProxyUrl,
+            ollamaCloudApiKey,
+            ollamaCloudUrl,
           });
 
           conversationRef.current.push({ role: "assistant", content: aiResponse });
@@ -123,7 +129,7 @@ export default function VoiceMode() {
       },
       onEnd: () => {},
     });
-  }, [provider, model, apiKey, ollamaUrl, ollamaCloudUrl, ollamaCloudApiKey, userName, elevenlabsApiKey, elevenlabsVoiceId]);
+  }, [provider, model, apiKey, ollamaUrl, ollamaProxyUrl, ollamaCloudUrl, ollamaCloudApiKey, ollamaVisionModel, userName, elevenlabsApiKey, elevenlabsVoiceId]);
 
   useEffect(() => {
     startConversation();
@@ -147,7 +153,11 @@ export default function VoiceMode() {
       {/* close */}
       <button
         onClick={handleClose}
-        className="absolute top-6 right-6 w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white/80 hover:border-white/30 transition-all cursor-pointer"
+        className="absolute w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white/80 hover:border-white/30 transition-all cursor-pointer"
+        style={{
+          top: "max(1.5rem, env(safe-area-inset-top))",
+          right: "max(1.5rem, env(safe-area-inset-right))",
+        }}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="18" y1="6" x2="6" y2="18" />
@@ -210,7 +220,8 @@ export default function VoiceMode() {
       {/* end button */}
       <button
         onClick={handleClose}
-        className="absolute bottom-12 px-8 py-3 rounded-full border border-white/10 font-body text-xs tracking-[0.2em] uppercase text-white/40 hover:text-white/80 hover:border-white/30 transition-all cursor-pointer"
+        className="absolute px-8 py-3 rounded-full border border-white/10 font-body text-xs tracking-[0.2em] uppercase text-white/40 hover:text-white/80 hover:border-white/30 transition-all cursor-pointer"
+        style={{ bottom: "max(3rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
       >
         End
       </button>

@@ -51,12 +51,12 @@ export default function Landing() {
       {/* enter */}
       <button
         onClick={handleEnter}
-        className={`absolute bottom-16 font-body text-sm tracking-[0.25em] uppercase text-warm-400/60 
+        className={`absolute font-body text-sm tracking-[0.25em] uppercase text-warm-400/60 
           hover:text-warm-400 transition-all duration-500 cursor-pointer
           animate-breathe ${
             ready ? "opacity-100" : "opacity-0"
           }`}
-        style={{ transitionDelay: "1.4s", animationDelay: "2s" }}
+        style={{ transitionDelay: "1.4s", animationDelay: "2s", bottom: "max(4rem, calc(env(safe-area-inset-bottom) + 2rem))" }}
       >
         enter
       </button>
