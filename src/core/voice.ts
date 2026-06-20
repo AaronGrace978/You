@@ -1,8 +1,10 @@
 /**
  * Voice Engine — ElevenLabs TTS + Web Speech API recognition.
+ *
+ * ElevenLabs sends permissive CORS headers (Allow-Origin: *), so we call it
+ * directly from the browser — no proxy needed. The key is user-provided and
+ * lives only in their browser.
  */
-
-import { isHostedApp, OLLAMA_PROXY_URL } from "./ai-config";
 
 const SpeechRecognitionAPI =
   typeof window !== "undefined"
@@ -169,11 +171,36 @@ export function prepareTextForSpeech(text: string, maxChars = 2500): string {
 }
 
 function elevenLabsUrl(voiceId: string): string {
-  const path = `v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
-  if (isHostedApp()) {
-    return `${OLLAMA_PROXY_URL}/elevenlabs/${path}`;
+  return `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+}
+
+/** Pull a readable message out of any ElevenLabs error body shape. */
+async function extractError(response: Response): Promise<string> {
+  try {
+    const err = await response.json();
+    const d = err?.detail ?? err;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) return d[0]?.msg || d[0]?.message || JSON.stringify(d[0]);
+    return d?.message || d?.status || err?.message || `HTTP ${response.status}`;
+  } catch {
+    return `HTTP ${response.status}`;
   }
-  return `https://api.elevenlabs.io/${path}`;
+}
+
+/** Turn raw API failures into something a human can act on. */
+function friendlyElevenLabsError(status: number, detail: string): string {
+  switch (status) {
+    case 401:
+      return "Invalid or expired API key — copy a fresh key from elevenlabs.io → Profile.";
+    case 403:
+      return "This API key isn't allowed to use text-to-speech (check key permissions).";
+    case 422:
+      return `Voice or settings rejected by ElevenLabs (${detail}). Try a different voice.`;
+    case 429:
+      return "Rate limit or out of credits on your ElevenLabs plan.";
+    default:
+      return `ElevenLabs error ${status}: ${detail}`;
+  }
 }
 
 async function playAudioBlob(blob: Blob): Promise<void> {
@@ -242,15 +269,7 @@ export async function speakWithElevenLabs(
   });
 
   if (!response.ok) {
-    let detail = `HTTP ${response.status}`;
-    try {
-      const err = await response.json();
-      detail =
-        typeof err.detail === "string"
-          ? err.detail
-          : err.detail?.message || err.message || detail;
-    } catch {}
-    throw new Error(`ElevenLabs: ${detail}`);
+    throw new Error(friendlyElevenLabsError(response.status, await extractError(response)));
   }
 
   await playAudioBlob(await response.blob());
