@@ -12,7 +12,7 @@ const CORS_HEADERS = (origin: string | null) => ({
       ? origin
       : ALLOWED_ORIGINS[0],
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, xi-api-key",
 });
 
 export default {
@@ -28,6 +28,45 @@ export default {
       return new Response("Forbidden", { status: 403, headers: cors });
     }
 
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/^\/+/, "");
+
+    // ElevenLabs TTS proxy — user's xi-api-key is forwarded from the browser (CORS bypass).
+    if (path.startsWith("elevenlabs/")) {
+      const apiKey = request.headers.get("xi-api-key");
+      if (!apiKey) {
+        return new Response(JSON.stringify({ error: "xi-api-key header required" }), {
+          status: 401,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      const targetPath = path.replace(/^elevenlabs\//, "");
+      const target = `https://api.elevenlabs.io/${targetPath}${url.search}`;
+
+      const headers = new Headers();
+      headers.set("xi-api-key", apiKey);
+      const contentType = request.headers.get("Content-Type");
+      if (contentType) headers.set("Content-Type", contentType);
+      const accept = request.headers.get("Accept");
+      if (accept) headers.set("Accept", accept);
+
+      const res = await fetch(target, {
+        method: request.method,
+        headers,
+        body: request.method === "GET" ? undefined : request.body,
+      });
+
+      const out = new Response(res.body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: cors,
+      });
+      const resType = res.headers.get("Content-Type");
+      if (resType) out.headers.set("Content-Type", resType);
+      return out;
+    }
+
     if (!env.OLLAMA_API_KEY) {
       return new Response(JSON.stringify({ error: "OLLAMA_API_KEY not configured on worker" }), {
         status: 500,
@@ -35,8 +74,6 @@ export default {
       });
     }
 
-    const url = new URL(request.url);
-    const path = url.pathname.replace(/^\/+/, "");
     const targetPath = path.startsWith("api/") ? path : `api/${path || "tags"}`;
     const target = `https://ollama.com/${targetPath}${url.search}`;
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore, type Provider } from "../store";
 import { getMemoryStats } from "../core/memory";
 import { testOllamaConnection, effectiveProxyUrl } from "../core/providers";
+import { testElevenLabsVoice } from "../core/voice";
 import {
   isHostedApp,
   OLLAMA_PROXY_URL,
@@ -39,6 +40,7 @@ export default function Settings() {
   const setElevenlabsVoiceId = useStore((s) => s.setElevenlabsVoiceId);
 
   const [testingOllama, setTestingOllama] = useState<"cloud" | "local" | null>(null);
+  const [testingVoice, setTestingVoice] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [statusOk, setStatusOk] = useState(false);
 
@@ -68,6 +70,14 @@ export default function Settings() {
     );
     showStatus(r.ok, r.message);
     setTestingOllama(null);
+  };
+
+  const testVoice = async () => {
+    setTestingVoice(true);
+    setStatusMsg(null);
+    const r = await testElevenLabsVoice(elevenlabsApiKey, elevenlabsVoiceId);
+    showStatus(r.ok, r.message);
+    setTestingVoice(false);
   };
 
   const currentTextModel =
@@ -373,11 +383,20 @@ export default function Settings() {
                 </select>
               </Field>
               <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
-                Voice mode uses ElevenLabs for natural speech.{" "}
+                Voice mode uses ElevenLabs for natural speech. Falls back to your phone's voice if needed.{" "}
                 <a href="https://elevenlabs.io" target="_blank" rel="noreferrer" className="underline">
                   Get key ↗
                 </a>
               </p>
+              <button
+                type="button"
+                onClick={testVoice}
+                disabled={testingVoice || !elevenlabsApiKey.trim()}
+                className="font-body text-xs cursor-pointer disabled:opacity-50"
+                style={{ color: "rgb(var(--c-muted))" }}
+              >
+                {testingVoice ? "Playing test…" : "Test voice"}
+              </button>
             </div>
           </Section>
 

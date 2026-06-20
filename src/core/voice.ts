@@ -1,7 +1,8 @@
 /**
  * Voice Engine — ElevenLabs TTS + Web Speech API recognition.
- * Powers the natural voice conversation mode.
  */
+
+import { isHostedApp, OLLAMA_PROXY_URL } from "./ai-config";
 
 const SpeechRecognitionAPI =
   typeof window !== "undefined"
@@ -11,15 +12,12 @@ const SpeechRecognitionAPI =
 let recognition: any = null;
 let currentAudio: HTMLAudioElement | null = null;
 let audioUnlocked = false;
+/** Bumped on stopListening — stale recognition callbacks are ignored. */
+let listenSession = 0;
 
-/** Tiny silent WAV — primes mobile browsers to allow later playback. */
 const SILENT_WAV =
   "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
 
-/**
- * Call this on a user tap (before voice mode opens). Android blocks audio.play()
- * unless playback was unlocked during a recent gesture.
- */
 export async function unlockAudioForPlayback(): Promise<void> {
   if (audioUnlocked || typeof window === "undefined") return;
 
@@ -30,9 +28,7 @@ export async function unlockAudioForPlayback(): Promise<void> {
       await ctx.resume();
       await ctx.close();
     }
-  } catch {
-    // AudioContext may be unavailable — still try the Audio element below.
-  }
+  } catch {}
 
   try {
     const primer = new Audio(SILENT_WAV);
@@ -41,9 +37,7 @@ export async function unlockAudioForPlayback(): Promise<void> {
     await primer.play();
     primer.pause();
     audioUnlocked = true;
-  } catch {
-    // Will retry on next user gesture.
-  }
+  } catch {}
 }
 
 export function isSpeechRecognitionSupported(): boolean {
@@ -57,13 +51,38 @@ export interface RecognitionCallbacks {
   onEnd: () => void;
 }
 
+/** Collapse "hey hey hey hey" stutter from duplicate recognition chunks. */
+export function collapseRepeatedSpeech(text: string): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return text.trim();
+
+  const deduped: string[] = [];
+  for (const word of words) {
+    const prev = deduped[deduped.length - 1];
+    if (!prev || prev.toLowerCase() !== word.toLowerCase()) {
+      deduped.push(word);
+    }
+  }
+
+  return deduped.join(" ");
+}
+
+function composeTranscript(event: any): string {
+  let text = "";
+  for (let i = 0; i < event.results.length; i++) {
+    text += event.results[i][0].transcript;
+  }
+  return collapseRepeatedSpeech(text.trim());
+}
+
 export function startListening(callbacks: RecognitionCallbacks): void {
   if (!SpeechRecognitionAPI) {
-    callbacks.onError("Speech recognition not supported in this browser");
+    callbacks.onError("Speech recognition not supported — try Chrome");
     return;
   }
 
   stopListening();
+  const session = listenSession;
 
   recognition = new SpeechRecognitionAPI();
   recognition.continuous = false;
@@ -71,44 +90,41 @@ export function startListening(callbacks: RecognitionCallbacks): void {
   recognition.lang = "en-US";
   recognition.maxAlternatives = 1;
 
-  let finalTranscript = "";
+  let lastTranscript = "";
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let delivered = false;
 
-  const deliverFinal = () => {
-    if (delivered) return;
-    const text = finalTranscript.trim();
-    if (!text) return;
+  const deliver = (text: string) => {
+    if (delivered || session !== listenSession) return;
+    const clean = collapseRepeatedSpeech(text);
+    if (!clean) return;
     delivered = true;
     if (silenceTimer) clearTimeout(silenceTimer);
-    callbacks.onFinal(text);
+    callbacks.onFinal(clean);
   };
 
   recognition.onresult = (event: any) => {
-    let interim = "";
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcript = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        finalTranscript += transcript + " ";
-      } else {
-        interim += transcript;
-      }
-    }
+    if (session !== listenSession) return;
 
-    callbacks.onInterim((finalTranscript + interim).trim());
+    lastTranscript = composeTranscript(event);
+    callbacks.onInterim(lastTranscript);
 
     if (silenceTimer) clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(deliverFinal, 1200);
+    if (lastTranscript) {
+      silenceTimer = setTimeout(() => deliver(lastTranscript), 1600);
+    }
   };
 
   recognition.onerror = (event: any) => {
-    if (event.error === "no-speech") return;
-    if (event.error === "aborted") return;
+    if (session !== listenSession) return;
+    if (event.error === "no-speech" || event.error === "aborted") return;
     callbacks.onError(event.error);
   };
 
   recognition.onend = () => {
-    deliverFinal();
+    if (session !== listenSession) return;
+    if (silenceTimer) clearTimeout(silenceTimer);
+    if (!delivered && lastTranscript) deliver(lastTranscript);
     callbacks.onEnd();
   };
 
@@ -120,6 +136,7 @@ export function startListening(callbacks: RecognitionCallbacks): void {
 }
 
 export function stopListening(): void {
+  listenSession++;
   if (recognition) {
     try {
       recognition.abort();
@@ -128,7 +145,6 @@ export function stopListening(): void {
   }
 }
 
-/** Strip markdown so TTS doesn't read asterisks and hash marks aloud. */
 export function prepareTextForSpeech(text: string, maxChars = 2500): string {
   let clean = text
     .replace(/```[\s\S]*?```/g, " ")
@@ -152,14 +168,22 @@ export function prepareTextForSpeech(text: string, maxChars = 2500): string {
   return clean;
 }
 
+function elevenLabsUrl(voiceId: string): string {
+  const path = `v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+  if (isHostedApp()) {
+    return `${OLLAMA_PROXY_URL}/elevenlabs/${path}`;
+  }
+  return `https://api.elevenlabs.io/${path}`;
+}
+
 async function playAudioBlob(blob: Blob): Promise<void> {
-  if (!blob.type.startsWith("audio/") && blob.size < 200) {
+  const type = blob.type || "";
+  if (!type.startsWith("audio/") && blob.size < 200) {
     const errText = await blob.text();
-    throw new Error(errText || "ElevenLabs returned no audio");
+    throw new Error(errText || "No audio returned");
   }
 
   await unlockAudioForPlayback();
-
   const audioUrl = URL.createObjectURL(blob);
 
   return new Promise((resolve, reject) => {
@@ -179,9 +203,8 @@ async function playAudioBlob(blob: Blob): Promise<void> {
     };
     audio.onerror = () => {
       cleanup();
-      reject(new Error("Audio playback failed — check your phone volume"));
+      reject(new Error("Playback failed — check phone volume"));
     };
-
     audio.play().catch((err) => {
       cleanup();
       reject(err);
@@ -199,41 +222,38 @@ export async function speakWithElevenLabs(
   const prepared = prepareTextForSpeech(text);
   if (!prepared) return;
 
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
-    {
-      method: "POST",
-      headers: {
-        "xi-api-key": apiKey,
-        "Content-Type": "application/json",
-        Accept: "audio/mpeg",
+  const response = await fetch(elevenLabsUrl(voiceId), {
+    method: "POST",
+    headers: {
+      "xi-api-key": apiKey.trim(),
+      "Content-Type": "application/json",
+      Accept: "audio/mpeg",
+    },
+    body: JSON.stringify({
+      text: prepared,
+      model_id: "eleven_turbo_v2_5",
+      voice_settings: {
+        stability: 0.45,
+        similarity_boost: 0.8,
+        style: 0.2,
+        use_speaker_boost: true,
       },
-      body: JSON.stringify({
-        text: prepared,
-        model_id: "eleven_turbo_v2_5",
-        voice_settings: {
-          stability: 0.45,
-          similarity_boost: 0.8,
-          style: 0.2,
-          use_speaker_boost: true,
-        },
-      }),
-    }
-  );
+    }),
+  });
 
   if (!response.ok) {
     let detail = `HTTP ${response.status}`;
     try {
       const err = await response.json();
-      detail = err.detail?.message || err.detail || detail;
-    } catch {
-      // ignore parse errors
-    }
+      detail =
+        typeof err.detail === "string"
+          ? err.detail
+          : err.detail?.message || err.message || detail;
+    } catch {}
     throw new Error(`ElevenLabs: ${detail}`);
   }
 
-  const audioBlob = await response.blob();
-  await playAudioBlob(audioBlob);
+  await playAudioBlob(await response.blob());
 }
 
 export function speakWithBrowser(text: string): Promise<void> {
@@ -247,7 +267,7 @@ export function speakWithBrowser(text: string): Promise<void> {
   return new Promise((resolve) => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(prepared);
-    utterance.rate = 0.95;
+    utterance.rate = 0.92;
     utterance.pitch = 1;
     utterance.onend = () => resolve();
     utterance.onerror = () => resolve();
@@ -255,7 +275,6 @@ export function speakWithBrowser(text: string): Promise<void> {
   });
 }
 
-/** ElevenLabs when configured; device voice as fallback (critical on Android). */
 export async function speakAloud(
   text: string,
   apiKey: string,
@@ -270,7 +289,10 @@ export async function speakAloud(
       await speakWithBrowser(text);
       return {
         engine: "browser",
-        warning: err instanceof Error ? err.message : "ElevenLabs unavailable — using device voice",
+        warning:
+          err instanceof Error
+            ? `${err.message} — using device voice instead`
+            : "ElevenLabs unavailable — using device voice",
       };
     }
   }
@@ -290,17 +312,9 @@ export async function testElevenLabsVoice(
   try {
     await unlockAudioForPlayback();
     await speakWithElevenLabs("Hello. I can hear you.", apiKey.trim(), voiceId);
-    return { ok: true, message: "Voice test played — you should have heard a short greeting." };
+    return { ok: true, message: "Played a test greeting — did you hear it?" };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
-      return {
-        ok: false,
-        message:
-          "Cannot reach ElevenLabs from the browser. Try Chrome, or check your key at elevenlabs.io.",
-      };
-    }
-    return { ok: false, message: msg };
+    return { ok: false, message: err instanceof Error ? err.message : "Test failed" };
   }
 }
 
@@ -318,3 +332,5 @@ export function stopAll(): void {
   stopListening();
   stopSpeaking();
 }
+
+export const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
