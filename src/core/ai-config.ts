@@ -59,6 +59,9 @@ export const ANTHROPIC_MODELS = [
 ] as const;
 
 export const VOICE_PRESETS = [
+  { id: "5cVNuMBWdU6DJjJJdH0A", name: "Aaron Grace", vibe: "Personal" },
+  { id: "43h528xJq9pKxgRXoEKH", name: "ActivatePrime", vibe: "Prime" },
+  { id: "FOfJ2PMgU6HOGbNYnzto", name: "Amira", vibe: "Custom" },
   { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", vibe: "Soft & clear" },
   { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", vibe: "Warm & calm" },
   { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", vibe: "Deep & grounding" },
