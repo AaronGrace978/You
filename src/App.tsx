@@ -17,12 +17,22 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     const color = THEME_COLORS[theme];
-    let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+
+    // Keep exactly one theme-color meta with no media scoping, so the status-bar
+    // tint always tracks the in-app theme (not the device's system color scheme).
+    // Stray media-scoped metas would otherwise win and paint a mismatched line.
+    const metas = Array.from(
+      document.querySelectorAll('meta[name="theme-color"]')
+    ) as HTMLMetaElement[];
+    metas.slice(1).forEach((m) => m.remove());
+
+    let meta = metas[0];
     if (!meta) {
       meta = document.createElement("meta");
       meta.name = "theme-color";
       document.head.appendChild(meta);
     }
+    meta.removeAttribute("media");
     meta.content = color;
   }, [theme]);
 

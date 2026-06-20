@@ -9,9 +9,10 @@
       content="A relational AI presence that sees you — not as a problem to solve, but as a person to hear."
     />
 
-    <!-- Address-bar / status-bar tint, matched to theme -->
-    <meta name="theme-color" content="#09090f" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#f8f5f0" media="(prefers-color-scheme: light)" />
+    <!-- Status-bar tint — kept in sync with the in-app theme at runtime (App.tsx).
+         No prefers-color-scheme media here: it must follow the app's theme, not the
+         system's, or the status bar shows a mismatched line above the content. -->
+    <meta name="theme-color" content="#09090f" />
 
     <!-- Installable on phones (Add to Home Screen) -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
