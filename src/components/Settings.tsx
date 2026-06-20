@@ -37,7 +37,6 @@ export default function Settings() {
   const setOllamaVisionModel = useStore((s) => s.setOllamaVisionModel);
   const setUserName = useStore((s) => s.setUserName);
   const setElevenlabsApiKey = useStore((s) => s.setElevenlabsApiKey);
-  const setElevenlabsVoiceId = useStore((s) => s.setElevenlabsVoiceId);
 
   const [testingOllama, setTestingOllama] = useState<"cloud" | "local" | null>(null);
   const [testingVoice, setTestingVoice] = useState(false);
@@ -369,19 +368,7 @@ export default function Settings() {
                   autoComplete="off"
                 />
               </Field>
-              <Field label="Voice">
-                <select
-                  value={elevenlabsVoiceId}
-                  onChange={(e) => setElevenlabsVoiceId(e.target.value)}
-                  className="input-field"
-                >
-                  {VOICE_PRESETS.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} — {v.vibe}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <VoiceSelector />
               <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
                 Voice mode uses ElevenLabs for natural speech. Falls back to your phone's voice if needed.{" "}
                 <a href="https://elevenlabs.io" target="_blank" rel="noreferrer" className="underline">
@@ -462,6 +449,72 @@ function ModelSelect({
         ))}
       </select>
     </Field>
+  );
+}
+
+function VoiceSelector() {
+  const elevenlabsVoiceId = useStore((s) => s.elevenlabsVoiceId);
+  const setElevenlabsVoiceId = useStore((s) => s.setElevenlabsVoiceId);
+
+  const isPreset = VOICE_PRESETS.some((v) => v.id === elevenlabsVoiceId);
+  const [customMode, setCustomMode] = useState(!isPreset && elevenlabsVoiceId.trim().length > 0);
+
+  const showCustom = customMode || !isPreset;
+  const selectValue = showCustom ? "custom" : elevenlabsVoiceId;
+
+  const handleSelect = (value: string) => {
+    if (value === "custom") {
+      setCustomMode(true);
+      if (isPreset) setElevenlabsVoiceId("");
+    } else {
+      setCustomMode(false);
+      setElevenlabsVoiceId(value);
+    }
+  };
+
+  return (
+    <>
+      <Field label="Voice">
+        <select
+          value={selectValue}
+          onChange={(e) => handleSelect(e.target.value)}
+          className="input-field"
+        >
+          {VOICE_PRESETS.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name} — {v.vibe}
+            </option>
+          ))}
+          <option value="custom">Custom voice ID…</option>
+        </select>
+      </Field>
+
+      {showCustom && (
+        <Field label="Custom Voice ID">
+          <input
+            type="text"
+            value={elevenlabsVoiceId}
+            onChange={(e) => setElevenlabsVoiceId(e.target.value.trim())}
+            placeholder="e.g. 21m00Tcm4TlvDq8ikWAM"
+            className="input-field"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <p className="font-body text-[10px] mt-1 leading-relaxed" style={{ color: "rgb(var(--c-muted) / 0.9)" }}>
+            Paste any ElevenLabs Voice ID — find it in{" "}
+            <a
+              href="https://elevenlabs.io/app/voice-library"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              Voices
+            </a>{" "}
+            → your voice → <strong>Copy Voice ID</strong>. Then tap “Test voice” below.
+          </p>
+        </Field>
+      )}
+    </>
   );
 }
 
