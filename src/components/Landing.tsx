@@ -51,7 +51,7 @@ export default function Landing() {
       {/* enter */}
       <button
         onClick={handleEnter}
-        className={`absolute font-body text-sm tracking-[0.25em] uppercase text-warm-400/60 
+        className={`absolute font-body text-sm tracking-[0.25em] uppercase text-warm-400
           hover:text-warm-400 transition-all duration-500 cursor-pointer
           animate-breathe ${
             ready ? "opacity-100" : "opacity-0"

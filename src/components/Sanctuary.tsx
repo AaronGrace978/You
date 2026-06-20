@@ -149,7 +149,7 @@ export default function Sanctuary() {
   return (
     <div className={`h-full w-full flex flex-col transition-all duration-700 ${entered ? "opacity-100" : "opacity-0"}`}>
       <header className="flex items-center justify-between px-6 py-4 border-b border-warm-400/5">
-        <h2 className="font-display text-lg text-warm-50/80 tracking-wide">You</h2>
+        <h2 className="font-display text-lg text-warm-50 tracking-wide">You</h2>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <>
@@ -180,10 +180,10 @@ export default function Sanctuary() {
         <div className="max-w-2xl mx-auto py-8 space-y-6">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full min-h-[40vh] gap-4">
-              <p className="font-display text-3xl text-warm-50/30">
+              <p className="font-display text-3xl text-warm-50">
                 {userName ? `Welcome back, ${userName}` : "Hello"}
               </p>
-              <p className="font-body text-sm text-muted/60 max-w-sm text-center leading-relaxed">
+              <p className="font-body text-sm text-secondary max-w-sm text-center leading-relaxed">
                 Whatever you carry, you can set it down here. Say anything — or nothing at all.
               </p>
             </div>
@@ -195,8 +195,8 @@ export default function Sanctuary() {
 
           {isStreaming && streamingContent && (
             <div className="message-appear flex justify-start">
-              <div className="max-w-[85%] md:max-w-[75%] px-5 py-3.5 rounded-2xl rounded-bl-sm border border-warm-400/5 bg-surface/60">
-                <div className="prose-you font-body text-base leading-relaxed text-warm-50/80">
+              <div className="max-w-[85%] md:max-w-[75%] px-5 py-3.5 rounded-2xl rounded-bl-sm border border-warm-400/10 bg-surface/80">
+                <div className="prose-you font-body text-base leading-relaxed">
                   <Markdown>{streamingContent}</Markdown>
                   <span className="inline-block w-0.5 h-4 bg-warm-400/60 animate-blink ml-0.5 align-middle" />
                 </div>
@@ -229,7 +229,7 @@ export default function Sanctuary() {
                   ) : (
                     <div className="h-16 px-3 flex items-center gap-2 rounded-lg border border-warm-400/10" style={{ background: "rgb(var(--c-surface) / 0.6)" }}>
                       <FileTypeIcon type={att.type} />
-                      <span className="font-body text-xs max-w-[100px] truncate" style={{ color: "rgb(var(--c-text) / 0.7)" }}>{att.name}</span>
+                      <span className="font-body text-xs max-w-[100px] truncate text-secondary">{att.name}</span>
                     </div>
                   )}
                   <button
@@ -267,7 +267,7 @@ export default function Sanctuary() {
               onKeyDown={handleKeyDown}
               placeholder="Speak freely..."
               rows={1}
-              className="flex-1 bg-transparent text-warm-50/90 placeholder-muted/40 font-body text-base resize-none outline-none leading-relaxed max-h-40"
+              className="flex-1 bg-transparent text-warm-50 placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40"
             />
 
             {elevenlabsApiKey && (
@@ -291,7 +291,7 @@ export default function Sanctuary() {
               </svg>
             </button>
           </div>
-          <p className="text-center text-muted/30 text-xs mt-3 font-body">
+          <p className="text-center text-secondary text-xs mt-3 font-body">
             Everything shared here stays between you and this space.
           </p>
         </div>
@@ -309,8 +309,8 @@ function MessageBubble({ message }: { message: Message }) {
         <div
           className={`px-5 py-3.5 rounded-2xl font-body text-base leading-relaxed ${
             isUser
-              ? "bg-warm-400/10 text-warm-50/90 rounded-br-sm"
-              : "bg-surface/60 text-warm-50/80 rounded-bl-sm border border-warm-400/5"
+              ? "bg-warm-400/10 text-warm-50 rounded-br-sm"
+              : "bg-surface/80 text-warm-50 rounded-bl-sm border border-warm-400/10"
           }`}
         >
           {message.image && (
@@ -352,7 +352,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="mt-1.5 ml-1 flex items-center gap-1 font-body text-[11px] text-muted/40 hover:text-warm-400/80 transition-colors cursor-pointer"
+      className="mt-1.5 ml-1 flex items-center gap-1 font-body text-[11px] text-secondary hover:text-warm-400 transition-colors cursor-pointer"
       title={copied ? "Copied" : "Copy"}
     >
       {copied ? (
@@ -398,7 +398,7 @@ function AttachmentBlock({ attachment }: { attachment: Attachment }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2 border border-warm-400/5" style={{ background: "rgb(var(--c-surface) / 0.5)" }}>
       <FileTypeIcon type="file" />
-      <span className="font-body text-xs" style={{ color: "rgb(var(--c-text) / 0.7)" }}>{attachment.name}</span>
+      <span className="font-body text-xs text-secondary">{attachment.name}</span>
     </div>
   );
 }

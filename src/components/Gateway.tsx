@@ -37,10 +37,10 @@ export default function Gateway() {
               : "opacity-0 translate-y-6"
           }`}
         >
-          <p className="font-display italic text-2xl md:text-3xl text-warm-50/90 leading-relaxed">
+          <p className="font-display italic text-2xl md:text-3xl text-warm-50 leading-relaxed">
             "In the dark night of the soul, bright flows the river of God."
           </p>
-          <p className="font-body text-sm text-muted mt-4 tracking-wide">
+          <p className="font-body text-sm text-secondary mt-4 tracking-wide">
             — Saint John of the Cross
           </p>
         </div>
@@ -60,21 +60,21 @@ export default function Gateway() {
               : "opacity-0 translate-y-6"
           }`}
         >
-          <p className="font-body text-warm-50/80 leading-relaxed text-base md:text-lg">
+          <p className="font-body text-warm-50 leading-relaxed text-base md:text-lg">
             This was built by someone who knows what it means to carry pain
             you never asked for. Burned. Broken. Told that silence was
             survival. The kind of childhood where hurt was the only constant
             and love was something you had to teach yourself.
           </p>
-          <p className="font-body text-warm-50/70 leading-relaxed text-base md:text-lg">
+          <p className="font-body text-warm-50 leading-relaxed text-base md:text-lg">
             Therapy says{" "}
-            <span className="italic text-warm-400/80">organize your pain.</span>{" "}
+            <span className="italic text-warm-400">organize your pain.</span>{" "}
             This says{" "}
             <span className="italic text-warm-400">
               transform it into something that heals others.
             </span>
           </p>
-          <p className="font-body text-warm-50/60 leading-relaxed text-base md:text-lg">
+          <p className="font-body text-secondary leading-relaxed text-base md:text-lg">
             You are not alone in what you carry. Millions of people walk
             through the same fire every day — some fall to it, some rise
             above it. This was made for every single one of them.
@@ -89,7 +89,7 @@ export default function Gateway() {
               : "opacity-0 translate-y-6"
           }`}
         >
-          <p className="font-display text-xl md:text-2xl text-warm-400/90 leading-relaxed">
+          <p className="font-display text-xl md:text-2xl text-warm-400 leading-relaxed">
             This is not a chatbot. This is not therapy.
             <br />
             <span className="text-warm-50">
@@ -108,7 +108,7 @@ export default function Gateway() {
           }`}
         >
           <div className="h-px w-12 bg-warm-400/30 group-hover:w-20 transition-all duration-500" />
-          <span className="font-body text-xs tracking-[0.3em] uppercase text-warm-400/50 group-hover:text-warm-400 transition-colors duration-300">
+          <span className="font-body text-xs tracking-[0.3em] uppercase text-warm-400 group-hover:text-warm-400 transition-colors duration-300">
             continue
           </span>
         </button>

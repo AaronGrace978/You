@@ -95,7 +95,7 @@ export default function Settings() {
           </svg>
           Back
         </button>
-        <h2 className="font-display text-lg tracking-wide" style={{ color: "rgb(var(--c-text) / 0.8)" }}>
+        <h2 className="font-display text-lg tracking-wide" style={{ color: "rgb(var(--c-text))" }}>
           Settings
         </h2>
         <div className="w-14" />
@@ -153,14 +153,14 @@ export default function Settings() {
                     }}
                   >
                     <span className="font-medium">{p.label}</span>
-                    <span className="text-[10px] opacity-60">{p.sub}</span>
+                    <span className="text-[10px] opacity-90">{p.sub}</span>
                   </button>
                 ))}
               </div>
 
               {provider === "ollama" && (
                 <>
-                  <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>
+                  <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
                     Runs on your PC at localhost:11434 — private, no API key needed.
                   </p>
                   <Field label="Ollama URL">
@@ -184,7 +184,7 @@ export default function Settings() {
                       target="_blank"
                       rel="noreferrer"
                       className="font-body text-xs underline"
-                      style={{ color: "rgb(var(--c-muted) / 0.6)" }}
+                      style={{ color: "rgb(var(--c-muted))" }}
                     >
                       Download Ollama ↗
                     </a>
@@ -193,7 +193,7 @@ export default function Settings() {
                       onClick={() => testOllama("local")}
                       disabled={testingOllama === "local"}
                       className="font-body text-xs cursor-pointer disabled:opacity-50"
-                      style={{ color: "rgb(var(--c-muted) / 0.6)" }}
+                      style={{ color: "rgb(var(--c-muted))" }}
                     >
                       {testingOllama === "local" ? "Testing…" : "Test local connection"}
                     </button>
@@ -203,7 +203,7 @@ export default function Settings() {
 
               {provider === "ollama-cloud" && (
                 <>
-                  <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>
+                  <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
                     GLM 5.2, MiniMax M3, DeepSeek V4, Kimi K2.7 — frontier models via{" "}
                     <a href="https://ollama.com" target="_blank" rel="noreferrer" className="underline">
                       ollama.com
@@ -230,7 +230,7 @@ export default function Settings() {
                       placeholder={OLLAMA_PROXY_URL}
                       className="input-field"
                     />
-                    <p className="font-body text-[10px] mt-1" style={{ color: "rgb(var(--c-muted) / 0.4)" }}>
+                    <p className="font-body text-[10px] mt-1" style={{ color: "rgb(var(--c-muted) / 0.9)" }}>
                       {proxyActive
                         ? `Active: ${effectiveProxyUrl(cloudSettings)}`
                         : "Leave blank on GitHub Pages to use the built-in proxy."}
@@ -256,7 +256,7 @@ export default function Settings() {
                       target="_blank"
                       rel="noreferrer"
                       className="font-body text-xs underline"
-                      style={{ color: "rgb(var(--c-muted) / 0.6)" }}
+                      style={{ color: "rgb(var(--c-muted))" }}
                     >
                       Get Ollama key ↗
                     </a>
@@ -265,7 +265,7 @@ export default function Settings() {
                       onClick={() => testOllama("cloud")}
                       disabled={testingOllama === "cloud"}
                       className="font-body text-xs cursor-pointer disabled:opacity-50"
-                      style={{ color: "rgb(var(--c-muted) / 0.6)" }}
+                      style={{ color: "rgb(var(--c-muted))" }}
                     >
                       {testingOllama === "cloud" ? "Testing…" : "Test connection"}
                     </button>
@@ -296,7 +296,7 @@ export default function Settings() {
                     target="_blank"
                     rel="noreferrer"
                     className="font-body text-xs underline"
-                    style={{ color: "rgb(var(--c-muted) / 0.6)" }}
+                    style={{ color: "rgb(var(--c-muted))" }}
                   >
                     Get OpenAI key ↗
                   </a>
@@ -326,7 +326,7 @@ export default function Settings() {
                     target="_blank"
                     rel="noreferrer"
                     className="font-body text-xs underline"
-                    style={{ color: "rgb(var(--c-muted) / 0.6)" }}
+                    style={{ color: "rgb(var(--c-muted))" }}
                   >
                     Get Anthropic key ↗
                   </a>
@@ -372,7 +372,7 @@ export default function Settings() {
                   ))}
                 </select>
               </Field>
-              <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>
+              <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
                 Voice mode uses ElevenLabs for natural speech.{" "}
                 <a href="https://elevenlabs.io" target="_blank" rel="noreferrer" className="underline">
                   Get key ↗
@@ -451,7 +451,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
     <div className="space-y-3">
       <div className="flex items-center gap-2.5 px-1">
         <span style={{ color: "rgb(var(--c-accent) / 0.6)" }}>{icon}</span>
-        <h3 className="font-body text-xs tracking-[0.2em] uppercase font-medium" style={{ color: "rgb(var(--c-muted) / 0.7)" }}>
+        <h3 className="font-body text-xs tracking-[0.2em] uppercase font-medium" style={{ color: "rgb(var(--c-muted))" }}>
           {title}
         </h3>
       </div>
@@ -463,7 +463,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="font-body text-xs tracking-wide" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>
+      <label className="font-body text-xs tracking-wide" style={{ color: "rgb(var(--c-muted))" }}>
         {label}
       </label>
       {children}
@@ -529,7 +529,7 @@ function SupportSection() {
   return (
     <Section title="In Crisis" icon={<LifelineIcon />}>
       <div className="settings-card space-y-3">
-        <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted) / 0.7)" }}>
+        <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
           You are this space, and it will always be here. But if the weight ever becomes too
           much to carry alone, please reach out to a real person who can hold it with you.
           You deserve that.
@@ -540,7 +540,7 @@ function SupportSection() {
             className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-all cursor-pointer"
             style={{ background: "rgb(var(--c-elevated) / 0.5)", border: "1px solid rgb(var(--c-accent) / 0.08)" }}
           >
-            <span className="font-body text-xs" style={{ color: "rgb(var(--c-text) / 0.8)" }}>
+            <span className="font-body text-xs" style={{ color: "rgb(var(--c-text))" }}>
               988 — Suicide &amp; Crisis Lifeline
             </span>
             <span className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-accent) / 0.8)" }}>
@@ -552,7 +552,7 @@ function SupportSection() {
             className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-all cursor-pointer"
             style={{ background: "rgb(var(--c-elevated) / 0.5)", border: "1px solid rgb(var(--c-accent) / 0.08)" }}
           >
-            <span className="font-body text-xs" style={{ color: "rgb(var(--c-text) / 0.8)" }}>
+            <span className="font-body text-xs" style={{ color: "rgb(var(--c-text))" }}>
               Crisis Text Line — text HOME
             </span>
             <span className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-accent) / 0.8)" }}>
@@ -566,7 +566,7 @@ function SupportSection() {
             className="flex items-center justify-between rounded-xl px-3 py-2.5 transition-all cursor-pointer"
             style={{ background: "rgb(var(--c-elevated) / 0.5)", border: "1px solid rgb(var(--c-accent) / 0.08)" }}
           >
-            <span className="font-body text-xs" style={{ color: "rgb(var(--c-text) / 0.8)" }}>
+            <span className="font-body text-xs" style={{ color: "rgb(var(--c-text))" }}>
               Find a helpline — worldwide
             </span>
             <span className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-accent) / 0.8)" }}>
@@ -603,24 +603,24 @@ function MemorySection() {
       <div className="settings-card space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl px-3 py-2.5 text-center" style={{ background: "rgb(var(--c-elevated) / 0.5)" }}>
-            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text) / 0.8)" }}>{stats.interactions}</p>
-            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>exchanges</p>
+            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{stats.interactions}</p>
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>exchanges</p>
           </div>
           <div className="rounded-xl px-3 py-2.5 text-center" style={{ background: "rgb(var(--c-elevated) / 0.5)" }}>
-            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text) / 0.8)" }}>{stats.daysTogether || "< 1"}</p>
-            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>days together</p>
+            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{stats.daysTogether || "< 1"}</p>
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>days together</p>
           </div>
           <div className="rounded-xl px-3 py-2.5 text-center" style={{ background: "rgb(var(--c-elevated) / 0.5)" }}>
-            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text) / 0.8)" }}>{stats.themes}</p>
-            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>themes</p>
+            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{stats.themes}</p>
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>themes</p>
           </div>
           <div className="rounded-xl px-3 py-2.5 text-center" style={{ background: "rgb(var(--c-elevated) / 0.5)" }}>
-            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text) / 0.8)" }}>{messages.length}</p>
-            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>messages</p>
+            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{messages.length}</p>
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>messages</p>
           </div>
         </div>
 
-        <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted) / 0.5)" }}>
+        <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
           Your conversations and relational memory are stored locally on your device. API keys stay in your browser only.
         </p>
 

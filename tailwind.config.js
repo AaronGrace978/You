@@ -39,7 +39,7 @@ export default {
       },
       keyframes: {
         breathe: {
-          "0%, 100%": { opacity: "0.4" },
+          "0%, 100%": { opacity: "0.75" },
           "50%": { opacity: "1" },
         },
         glow: {
