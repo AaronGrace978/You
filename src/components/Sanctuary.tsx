@@ -69,7 +69,6 @@ export default function Sanctuary() {
   const clearConversation = useStore((s) => s.clearConversation);
   const setView = useStore((s) => s.setView);
   const setVoiceMode = useStore((s) => s.setVoiceMode);
-  const elevenlabsApiKey = useStore((s) => s.elevenlabsApiKey);
   const userName = useStore((s) => s.userName);
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
@@ -271,22 +270,20 @@ export default function Sanctuary() {
               className="flex-1 bg-transparent text-warm-50 placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40"
             />
 
-            {elevenlabsApiKey && (
-              <button
-                onClick={() => {
-                  unlockAudioForPlayback();
-                  setVoiceMode(true);
-                }}
-                className="icon-btn"
-                title="Voice mode"
-              >
+            <button
+              onClick={() => {
+                unlockAudioForPlayback();
+                setVoiceMode(true);
+              }}
+              className="icon-btn"
+              title="Voice mode"
+            >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                   <line x1="12" x2="12" y1="19" y2="22" />
-                </svg>
-              </button>
-            )}
+              </svg>
+            </button>
 
             <button
               onClick={handleSend}

@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { buildSystemPrompt } from "../core/soul";
 import { chat } from "../core/providers";
 import { rememberMessage, getRelationalContext } from "../core/memory";
+import { normalizeElevenLabsApiKey } from "../core/voice";
 
 export interface Attachment {
   name: string;
@@ -62,6 +63,10 @@ interface AppState {
   elevenlabsVoiceId: string;
   setElevenlabsApiKey: (k: string) => void;
   setElevenlabsVoiceId: (id: string) => void;
+
+  /** When false, voice mode uses the device/browser TTS instead of ElevenLabs. */
+  useElevenLabsTts: boolean;
+  setUseElevenLabsTts: (v: boolean) => void;
 
   voiceMode: boolean;
   setVoiceMode: (v: boolean) => void;
@@ -184,8 +189,12 @@ export const useStore = create<AppState>()(
 
       elevenlabsApiKey: "",
       elevenlabsVoiceId: "21m00Tcm4TlvDq8ikWAM",
-      setElevenlabsApiKey: (elevenlabsApiKey) => set({ elevenlabsApiKey }),
+      setElevenlabsApiKey: (elevenlabsApiKey) =>
+        set({ elevenlabsApiKey: normalizeElevenLabsApiKey(elevenlabsApiKey) }),
       setElevenlabsVoiceId: (elevenlabsVoiceId) => set({ elevenlabsVoiceId }),
+
+      useElevenLabsTts: false,
+      setUseElevenLabsTts: (useElevenLabsTts) => set({ useElevenLabsTts }),
 
       voiceMode: false,
       setVoiceMode: (voiceMode) => set({ voiceMode }),
@@ -209,12 +218,17 @@ export const useStore = create<AppState>()(
         sessionCount: state.sessionCount,
         elevenlabsApiKey: state.elevenlabsApiKey,
         elevenlabsVoiceId: state.elevenlabsVoiceId,
+        useElevenLabsTts: state.useElevenLabsTts,
         hasSeenLanding: state.hasSeenLanding,
       }),
       onRehydrateStorage: () => {
         return (state?: AppState) => {
           if (state) {
             document.documentElement.setAttribute("data-theme", state.theme);
+            const normalizedKey = normalizeElevenLabsApiKey(state.elevenlabsApiKey);
+            if (normalizedKey !== state.elevenlabsApiKey) {
+              useStore.setState({ elevenlabsApiKey: normalizedKey });
+            }
             if (state.hasSeenLanding && state.messages.length > 0) {
               useStore.setState({ view: "sanctuary" });
             }

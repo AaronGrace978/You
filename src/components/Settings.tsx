@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useStore, type Provider } from "../store";
 import { getMemoryStats } from "../core/memory";
 import { testOllamaConnection, effectiveProxyUrl } from "../core/providers";
-import { testElevenLabsVoice } from "../core/voice";
+import { testElevenLabsVoice, testBrowserVoice, validateElevenLabsKey, ELEVENLABS_KEY_URL } from "../core/voice";
 import {
   isHostedApp,
   OLLAMA_PROXY_URL,
@@ -28,6 +28,7 @@ export default function Settings() {
   const userName = useStore((s) => s.userName);
   const elevenlabsApiKey = useStore((s) => s.elevenlabsApiKey);
   const elevenlabsVoiceId = useStore((s) => s.elevenlabsVoiceId);
+  const useElevenLabsTts = useStore((s) => s.useElevenLabsTts);
   const setProvider = useStore((s) => s.setProvider);
   const setModel = useStore((s) => s.setModel);
   const setApiKey = useStore((s) => s.setApiKey);
@@ -37,9 +38,13 @@ export default function Settings() {
   const setOllamaVisionModel = useStore((s) => s.setOllamaVisionModel);
   const setUserName = useStore((s) => s.setUserName);
   const setElevenlabsApiKey = useStore((s) => s.setElevenlabsApiKey);
+  const setUseElevenLabsTts = useStore((s) => s.setUseElevenLabsTts);
 
   const [testingOllama, setTestingOllama] = useState<"cloud" | "local" | null>(null);
   const [testingVoice, setTestingVoice] = useState(false);
+  const [verifyingKey, setVerifyingKey] = useState(false);
+  const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
+  const [voiceStatusOk, setVoiceStatusOk] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [statusOk, setStatusOk] = useState(false);
 
@@ -71,11 +76,26 @@ export default function Settings() {
     setTestingOllama(null);
   };
 
+  const showVoiceStatus = (ok: boolean, message: string) => {
+    setVoiceStatusOk(ok);
+    setVoiceStatusMsg(message);
+  };
+
+  const verifyElevenLabsKey = async () => {
+    setVerifyingKey(true);
+    setVoiceStatusMsg(null);
+    const r = await validateElevenLabsKey(elevenlabsApiKey);
+    showVoiceStatus(r.ok, r.message);
+    setVerifyingKey(false);
+  };
+
   const testVoice = async () => {
     setTestingVoice(true);
-    setStatusMsg(null);
-    const r = await testElevenLabsVoice(elevenlabsApiKey, elevenlabsVoiceId);
-    showStatus(r.ok, r.message);
+    setVoiceStatusMsg(null);
+    const r = useElevenLabsTts
+      ? await testElevenLabsVoice(elevenlabsApiKey, elevenlabsVoiceId)
+      : await testBrowserVoice();
+    showVoiceStatus(r.ok, r.message);
     setTestingVoice(false);
   };
 
@@ -358,32 +378,103 @@ export default function Settings() {
 
           <Section title="Voice" icon={<MicIcon />}>
             <div className="settings-card space-y-4">
+              <Field label="Speech engine">
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: false, label: "Device voice", sub: "Built-in TTS" },
+                      { id: true, label: "ElevenLabs", sub: "Natural AI" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={String(opt.id)}
+                      type="button"
+                      onClick={() => setUseElevenLabsTts(opt.id)}
+                      className="flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
+                      style={{
+                        background:
+                          useElevenLabsTts === opt.id
+                            ? "rgb(var(--c-accent) / 0.15)"
+                            : "rgb(var(--c-elevated) / 0.5)",
+                        color:
+                          useElevenLabsTts === opt.id
+                            ? "rgb(var(--c-accent))"
+                            : "rgb(var(--c-muted))",
+                        border:
+                          useElevenLabsTts === opt.id
+                            ? "1px solid rgb(var(--c-accent) / 0.3)"
+                            : "1px solid rgb(var(--c-border) / 0.3)",
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      <span className="text-[10px] opacity-70">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+
+              {!useElevenLabsTts && (
+                <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
+                  Uses your phone or computer&apos;s built-in text-to-speech — no API key needed. Voice mode
+                  still listens with your mic; replies are spoken with the system voice.
+                </p>
+              )}
+
+              {useElevenLabsTts && (
+                <>
               <Field label="ElevenLabs API Key">
                 <input
                   type="password"
                   value={elevenlabsApiKey}
-                  onChange={(e) => setElevenlabsApiKey(e.target.value.replace(/\s+/g, ""))}
-                  placeholder="xi-..."
+                  onChange={(e) => setElevenlabsApiKey(e.target.value)}
+                  placeholder="sk_..."
                   className="input-field"
                   autoComplete="off"
                 />
               </Field>
               <VoiceSelector />
               <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
-                Voice mode uses ElevenLabs for natural speech. Falls back to your phone's voice if needed.{" "}
-                <a href="https://elevenlabs.io" target="_blank" rel="noreferrer" className="underline">
-                  Get key ↗
+                Keys live only in your browser. In ElevenLabs go to Developers → API Keys, create a key
+                with <strong>Text to Speech</strong> enabled (or turn off Restrict Key). Paste only the key
+                value — not <code>xi-api-key:</code> (that is the HTTP header name).{" "}
+                <a href={ELEVENLABS_KEY_URL} target="_blank" rel="noreferrer" className="underline">
+                  Open API Keys ↗
                 </a>
               </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={verifyElevenLabsKey}
+                  disabled={verifyingKey || !elevenlabsApiKey.trim()}
+                  className="font-body text-xs cursor-pointer disabled:opacity-50"
+                  style={{ color: "rgb(var(--c-muted))" }}
+                >
+                  {verifyingKey ? "Checking key…" : "Verify key"}
+                </button>
+              </div>
+                </>
+              )}
+
               <button
                 type="button"
                 onClick={testVoice}
-                disabled={testingVoice || !elevenlabsApiKey.trim()}
+                disabled={testingVoice || (useElevenLabsTts && !elevenlabsApiKey.trim())}
                 className="font-body text-xs cursor-pointer disabled:opacity-50"
                 style={{ color: "rgb(var(--c-muted))" }}
               >
                 {testingVoice ? "Playing test…" : "Test voice"}
               </button>
+              {voiceStatusMsg && (
+                <p
+                  className="font-body text-xs leading-relaxed px-3 py-2 rounded-lg"
+                  style={{
+                    color: "rgb(var(--c-text))",
+                    background: voiceStatusOk ? "rgb(120 180 120 / 0.1)" : "rgb(200 100 100 / 0.1)",
+                  }}
+                >
+                  {voiceStatusMsg}
+                </p>
+              )}
             </div>
           </Section>
 

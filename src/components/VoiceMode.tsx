@@ -27,6 +27,7 @@ export default function VoiceMode() {
   const ollamaVisionModel = useStore((s) => s.ollamaVisionModel);
   const elevenlabsApiKey = useStore((s) => s.elevenlabsApiKey);
   const elevenlabsVoiceId = useStore((s) => s.elevenlabsVoiceId);
+  const useElevenLabsTts = useStore((s) => s.useElevenLabsTts);
 
   const [state, setState] = useState<VoiceState>("listening");
   const [transcript, setTranscript] = useState("");
@@ -50,6 +51,7 @@ export default function VoiceMode() {
     ollamaVisionModel,
     elevenlabsApiKey,
     elevenlabsVoiceId,
+    useElevenLabsTts,
   });
   configRef.current = {
     provider,
@@ -62,6 +64,7 @@ export default function VoiceMode() {
     ollamaVisionModel,
     elevenlabsApiKey,
     elevenlabsVoiceId,
+    useElevenLabsTts,
   };
 
   useEffect(() => {
@@ -134,11 +137,14 @@ export default function VoiceMode() {
       const { engine, warning } = await speakAloud(
         aiResponse,
         cfg.elevenlabsApiKey,
-        cfg.elevenlabsVoiceId
+        cfg.elevenlabsVoiceId,
+        { useElevenLabs: cfg.useElevenLabsTts }
       );
       if (warning) setHint(warning);
-      else if (engine === "browser" && !cfg.elevenlabsApiKey.trim()) {
-        setHint("Using device voice — add ElevenLabs key in Settings for natural speech.");
+      else if (engine === "browser" && cfg.useElevenLabsTts && !cfg.elevenlabsApiKey.trim()) {
+        setHint("ElevenLabs is on but no API key — using device voice. Add a key in Settings.");
+      } else if (engine === "browser" && !cfg.useElevenLabsTts) {
+        setHint("Using device voice.");
       }
     } catch (err) {
       console.error("Voice mode error:", err);

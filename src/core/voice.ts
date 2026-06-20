@@ -170,37 +170,121 @@ export function prepareTextForSpeech(text: string, maxChars = 2500): string {
   return clean;
 }
 
-function elevenLabsUrl(voiceId: string): string {
-  return `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+const ELEVENLABS_API = "https://api.elevenlabs.io/v1";
+/** Docs default; widely available on free plans. */
+const ELEVENLABS_TTS_MODEL = "eleven_multilingual_v2";
+
+export const ELEVENLABS_KEY_URL = "https://elevenlabs.io/app/settings/api-keys";
+
+/** Strip common paste mistakes (header name, Bearer, quotes, whitespace). */
+export function normalizeElevenLabsApiKey(raw: string): string {
+  let key = raw.trim();
+  key = key.replace(/^xi-api-key\s*:\s*/i, "");
+  key = key.replace(/^authorization\s*:\s*bearer\s+/i, "");
+  key = key.replace(/^bearer\s+/i, "");
+  key = key.replace(/^["'`]|["'`]$/g, "");
+  return key.replace(/\s+/g, "");
 }
 
-/** Pull a readable message out of any ElevenLabs error body shape. */
-async function extractError(response: Response): Promise<string> {
+interface ElevenLabsErrorDetail {
+  message: string;
+  code?: string;
+  type?: string;
+}
+
+/** Parse ElevenLabs JSON error bodies (detail may be object, string, or array). */
+async function parseElevenLabsError(response: Response): Promise<ElevenLabsErrorDetail> {
   try {
     const err = await response.json();
     const d = err?.detail ?? err;
-    if (typeof d === "string") return d;
-    if (Array.isArray(d)) return d[0]?.msg || d[0]?.message || JSON.stringify(d[0]);
-    return d?.message || d?.status || err?.message || `HTTP ${response.status}`;
+    if (typeof d === "string") return { message: d };
+    if (Array.isArray(d)) {
+      const first = d[0];
+      return {
+        message: first?.msg || first?.message || JSON.stringify(first),
+        code: first?.code || first?.type,
+      };
+    }
+    return {
+      message: d?.message || d?.status || err?.message || `HTTP ${response.status}`,
+      code: d?.code || d?.status,
+      type: d?.type,
+    };
   } catch {
-    return `HTTP ${response.status}`;
+    return { message: `HTTP ${response.status}` };
   }
 }
 
+const KEY_SETUP_HELP =
+  "Create a key at elevenlabs.io/app/settings/api-keys — enable Text to Speech (or turn off Restrict Key). Paste only the key value (usually sk_…), not xi-api-key:";
+
 /** Turn raw API failures into something a human can act on. */
-function friendlyElevenLabsError(status: number, detail: string): string {
-  switch (status) {
-    case 401:
-      return "Invalid or expired API key — copy a fresh key from elevenlabs.io → Profile.";
-    case 403:
-      return "This API key isn't allowed to use text-to-speech (check key permissions).";
-    case 422:
-      return `Voice or settings rejected by ElevenLabs (${detail}). Try a different voice.`;
-    case 429:
-      return "Rate limit or out of credits on your ElevenLabs plan.";
-    default:
-      return `ElevenLabs error ${status}: ${detail}`;
+function friendlyElevenLabsError(status: number, detail: ElevenLabsErrorDetail): string {
+  const code = (detail.code || "").toLowerCase();
+  const msg = detail.message || "";
+
+  if (code === "invalid_api_key" || code === "missing_api_key" || status === 401) {
+    return `Invalid API key. ${KEY_SETUP_HELP}${msg && !msg.includes("invalid") ? ` (${msg})` : ""}`;
   }
+  if (code === "insufficient_permissions" || status === 403) {
+    return `This key cannot use text-to-speech. ${KEY_SETUP_HELP}`;
+  }
+  if (code === "insufficient_credits" || status === 402) {
+    return "Your ElevenLabs account has no credits — add credits or upgrade your plan.";
+  }
+  if (code === "voice_not_found" || code === "invalid_voice_id") {
+    return `Voice not found: ${msg || "check the Voice ID or pick a preset."}`;
+  }
+  if (code === "voice_access_denied") {
+    return "You do not have access to this voice — try a preset or a voice from your account.";
+  }
+  if (code === "model_not_found" || code === "unsupported_model" || code === "model_access_denied") {
+    return `Model issue: ${msg || code}`;
+  }
+  if (status === 422) {
+    return `Request rejected: ${msg || "check voice ID and settings."}`;
+  }
+  if (status === 429 || code === "rate_limit_exceeded") {
+    return "Rate limit hit — wait a moment and try again.";
+  }
+  return msg || `ElevenLabs error ${status}`;
+}
+
+function elevenLabsUrl(voiceId: string): string {
+  return `${ELEVENLABS_API}/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+}
+
+/** Lightweight check — GET /v1/models only needs Models Read permission. */
+export async function validateElevenLabsKey(
+  apiKey: string
+): Promise<{ ok: boolean; message: string }> {
+  const key = normalizeElevenLabsApiKey(apiKey);
+  if (!key) return { ok: false, message: "No API key entered." };
+  if (key.length < 16) {
+    return {
+      ok: false,
+      message: "Key looks incomplete — copy the full key from ElevenLabs (usually starts with sk_).",
+    };
+  }
+
+  const response = await fetch(`${ELEVENLABS_API}/models`, {
+    headers: { "xi-api-key": key },
+  });
+
+  if (response.ok) return { ok: true, message: "API key is valid." };
+
+  const detail = await parseElevenLabsError(response);
+  const code = (detail.code || "").toLowerCase();
+
+  // Restricted keys may allow TTS but not Models Read — still worth trying speech.
+  if (response.status === 403 && code === "insufficient_permissions") {
+    return {
+      ok: true,
+      message: "Key looks valid but lacks Models Read — use Test voice to confirm TTS works.",
+    };
+  }
+
+  return { ok: false, message: friendlyElevenLabsError(response.status, detail) };
 }
 
 async function playAudioBlob(blob: Blob): Promise<void> {
@@ -249,16 +333,19 @@ export async function speakWithElevenLabs(
   const prepared = prepareTextForSpeech(text);
   if (!prepared) return;
 
+  const key = normalizeElevenLabsApiKey(apiKey);
+  if (!key) throw new Error("No ElevenLabs API key configured.");
+
   const response = await fetch(elevenLabsUrl(voiceId), {
     method: "POST",
     headers: {
-      "xi-api-key": apiKey.trim(),
+      "xi-api-key": key,
       "Content-Type": "application/json",
       Accept: "audio/mpeg",
     },
     body: JSON.stringify({
       text: prepared,
-      model_id: "eleven_turbo_v2_5",
+      model_id: ELEVENLABS_TTS_MODEL,
       voice_settings: {
         stability: 0.45,
         similarity_boost: 0.8,
@@ -269,7 +356,8 @@ export async function speakWithElevenLabs(
   });
 
   if (!response.ok) {
-    throw new Error(friendlyElevenLabsError(response.status, await extractError(response)));
+    const detail = await parseElevenLabsError(response);
+    throw new Error(friendlyElevenLabsError(response.status, detail));
   }
 
   await playAudioBlob(await response.blob());
@@ -297,11 +385,14 @@ export function speakWithBrowser(text: string): Promise<void> {
 export async function speakAloud(
   text: string,
   apiKey: string,
-  voiceId: string
+  voiceId: string,
+  options?: { useElevenLabs?: boolean }
 ): Promise<{ engine: "elevenlabs" | "browser"; warning?: string }> {
-  if (apiKey.trim()) {
+  const useElevenLabs = options?.useElevenLabs ?? true;
+
+  if (useElevenLabs && normalizeElevenLabsApiKey(apiKey)) {
     try {
-      await speakWithElevenLabs(text, apiKey.trim(), voiceId);
+      await speakWithElevenLabs(text, apiKey, voiceId);
       return { engine: "elevenlabs" };
     } catch (err) {
       console.warn("ElevenLabs failed, using device voice:", err);
@@ -320,17 +411,31 @@ export async function speakAloud(
   return { engine: "browser" };
 }
 
+export async function testBrowserVoice(): Promise<{ ok: boolean; message: string }> {
+  try {
+    await unlockAudioForPlayback();
+    await speakWithBrowser("Hello. This is your device voice.");
+    return { ok: true, message: "Played device voice — did you hear it?" };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : "Device voice test failed" };
+  }
+}
+
 export async function testElevenLabsVoice(
   apiKey: string,
   voiceId: string
 ): Promise<{ ok: boolean; message: string }> {
-  if (!apiKey.trim()) {
+  const key = normalizeElevenLabsApiKey(apiKey);
+  if (!key) {
     return { ok: false, message: "Add your ElevenLabs API key first." };
   }
 
+  const keyCheck = await validateElevenLabsKey(key);
+  if (!keyCheck.ok) return keyCheck;
+
   try {
     await unlockAudioForPlayback();
-    await speakWithElevenLabs("Hello. I can hear you.", apiKey.trim(), voiceId);
+    await speakWithElevenLabs("Hello. I can hear you.", key, voiceId);
     return { ok: true, message: "Played a test greeting — did you hear it?" };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Test failed" };
