@@ -231,12 +231,21 @@ select.input-field {
 
 .icon-btn {
   color: rgb(var(--c-muted));
-  transition: color 0.2s ease, background 0.2s ease;
+  background: rgb(var(--c-text) / 0.04);
+  border: 1px solid rgb(var(--c-accent) / 0.1);
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme="light"] .icon-btn {
+  color: rgb(var(--c-accent));
+  background: rgb(var(--c-elevated));
+  border-color: rgb(var(--c-accent) / 0.18);
 }
 
 .icon-btn:hover {
   color: rgb(var(--c-accent));
-  background: rgb(var(--c-accent) / 0.1);
+  background: rgb(var(--c-accent) / 0.12);
+  border-color: rgb(var(--c-accent) / 0.28);
 }
 
 .chat-input-wrap {
@@ -358,32 +367,45 @@ select.input-field {
   min-height: 100dvh;
 }
 
-/* Extra top paint for installed Android PWAs — safe-area is often 0 but a gap remains */
-.pwa-top-bleed {
+/* Extra top/bottom paint for installed PWAs — safe-area is often 0 but a gap remains */
+.pwa-top-bleed,
+.pwa-bottom-bleed {
   display: none;
 }
 
 @media (display-mode: standalone), (display-mode: fullscreen) {
-  .pwa-top-bleed {
+  .pwa-top-bleed,
+  .pwa-bottom-bleed {
     display: block;
     position: fixed;
-    top: 0;
     left: 0;
     right: 0;
     z-index: 9998;
     pointer-events: none;
     background-color: rgb(var(--c-deep));
-  }
-
-  .app-bg {
-    /* Bleed upward to cover the status-bar seam on Android */
-    top: calc(-1 * max(env(safe-area-inset-top, 0px), 28px));
-    min-height: calc(100% + max(env(safe-area-inset-top, 0px), 28px));
-    min-height: calc(100dvh + max(env(safe-area-inset-top, 0px), 28px));
+    transition: background-color 0.5s ease;
   }
 
   .pwa-top-bleed {
+    top: 0;
     height: max(env(safe-area-inset-top, 0px), 28px);
+  }
+
+  .pwa-bottom-bleed {
+    bottom: 0;
+    height: max(env(safe-area-inset-bottom, 0px), 24px);
+  }
+
+  .app-bg {
+    /* Bleed past status bar + nav bar seams on Android */
+    top: calc(-1 * max(env(safe-area-inset-top, 0px), 28px));
+    bottom: calc(-1 * max(env(safe-area-inset-bottom, 0px), 24px));
+    min-height: calc(
+      100% + max(env(safe-area-inset-top, 0px), 28px) + max(env(safe-area-inset-bottom, 0px), 24px)
+    );
+    min-height: calc(
+      100dvh + max(env(safe-area-inset-top, 0px), 28px) + max(env(safe-area-inset-bottom, 0px), 24px)
+    );
   }
 }
 
@@ -411,10 +433,22 @@ select.input-field {
 }
 
 /* Extra bottom room for chat input above the home indicator */
+.safe-bottom,
+.chat-dock {
+  background-color: rgb(var(--c-deep));
+  transition: background-color 0.5s ease;
+}
+
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px), 24px);
+  }
 }
 
 /* Larger, finger-friendly tap targets on touch devices. */

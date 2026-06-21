@@ -21,6 +21,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <div className="pwa-top-bleed" aria-hidden />
+      <div className="pwa-bottom-bleed" aria-hidden />
       <div className="app-bg" aria-hidden />
       <div className="app-content h-full w-full">
       <InstallHint />

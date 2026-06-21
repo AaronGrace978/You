@@ -249,7 +249,7 @@ export default function Sanctuary() {
         </div>
       )}
 
-      <div className="px-4 md:px-0 pt-2 safe-bottom">
+      <div className="px-4 md:px-0 pt-2 safe-bottom chat-dock">
         <div className="max-w-2xl mx-auto">
           <div className="chat-input-wrap relative flex items-end gap-2 backdrop-blur-sm rounded-2xl px-4 py-3">
             <button onClick={() => fileInputRef.current?.click()} className="icon-btn" title="Attach file">
@@ -267,7 +267,7 @@ export default function Sanctuary() {
               onKeyDown={handleKeyDown}
               placeholder="Speak freely..."
               rows={1}
-              className="flex-1 bg-transparent text-warm-50 placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40"
+              className="flex-1 bg-transparent text-primary placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40"
             />
 
             <button
