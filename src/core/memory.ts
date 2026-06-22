@@ -107,22 +107,40 @@ function distillOldMemories(): void {
   }
 }
 
-function analyzeMessage(msg: Message): MemoryEntry {
+export type BondStage = "new" | "warming" | "trusted" | "bonded";
+
+export function getBondStage(): BondStage {
+  const n = state.interactions;
+  if (n < 6) return "new";
+  if (n < 21) return "warming";
+  if (n < 51) return "trusted";
+  return "bonded";
+}
+
+export function analyzeUserContent(content: string): {
+  emotionalWeight: number;
+  tags: string[];
+} {
   let maxWeight = 0.1;
   const tags: string[] = [];
 
   for (const marker of EMOTIONAL_MARKERS) {
-    if (marker.pattern.test(msg.content)) {
+    if (marker.pattern.test(content)) {
       maxWeight = Math.max(maxWeight, marker.weight);
       if (!tags.includes(marker.tag)) tags.push(marker.tag);
     }
   }
 
+  return { emotionalWeight: maxWeight, tags };
+}
+
+function analyzeMessage(msg: Message): MemoryEntry {
+  const { emotionalWeight, tags } = analyzeUserContent(msg.content);
   return {
     content: msg.content,
     role: msg.role as "user" | "assistant",
     timestamp: msg.timestamp,
-    emotionalWeight: maxWeight,
+    emotionalWeight,
     tags,
   };
 }

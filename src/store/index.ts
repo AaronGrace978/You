@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { buildSystemPrompt } from "../core/soul";
-import { chat } from "../core/providers";
-import { rememberMessage, getRelationalContext } from "../core/memory";
+import { generateResponse } from "../core/conversation";
+import { rememberMessage } from "../core/memory";
 import { normalizeElevenLabsApiKey } from "../core/voice";
 import { applyThemeChrome } from "../core/theme-chrome";
 
@@ -69,6 +68,10 @@ interface AppState {
   useElevenLabsTts: boolean;
   setUseElevenLabsTts: (v: boolean) => void;
 
+  /** When true, uses read-the-room adaptation and reflect-revise on heavy turns. */
+  adaptiveLoops: boolean;
+  setAdaptiveLoops: (v: boolean) => void;
+
   voiceMode: boolean;
   setVoiceMode: (v: boolean) => void;
 
@@ -111,29 +114,30 @@ export const useStore = create<AppState>()(
         set({ isStreaming: true, streamingContent: "" });
 
         try {
-          const relationalContext = getRelationalContext();
-          const systemPrompt = buildSystemPrompt(state.userName, relationalContext);
-
           const history = [...get().messages].map((m) => ({
             role: m.role,
             content: m.content,
             image: m.image,
           }));
 
-          const response = await chat({
-            provider: state.provider,
-            model: state.model || getDefaultModel(state.provider),
-            ollamaVisionModel: state.ollamaVisionModel,
-            messages: [{ role: "system", content: systemPrompt }, ...history],
-            apiKey: state.provider === "ollama-cloud" ? state.ollamaCloudApiKey : state.apiKey,
-            ollamaUrl: state.ollamaUrl || "http://localhost:11434",
-            ollamaProxyUrl: state.ollamaProxyUrl,
-            ollamaCloudApiKey: state.ollamaCloudApiKey,
-            ollamaCloudUrl: state.ollamaCloudUrl,
-            onToken: (token) => {
-              set((s) => ({ streamingContent: s.streamingContent + token }));
+          const response = await generateResponse(
+            history,
+            {
+              provider: state.provider,
+              model: state.model || getDefaultModel(state.provider),
+              ollamaVisionModel: state.ollamaVisionModel,
+              apiKey: state.apiKey,
+              ollamaUrl: state.ollamaUrl || "http://localhost:11434",
+              ollamaProxyUrl: state.ollamaProxyUrl,
+              ollamaCloudApiKey: state.ollamaCloudApiKey,
+              ollamaCloudUrl: state.ollamaCloudUrl,
+              userName: state.userName,
+              adaptiveLoops: state.adaptiveLoops,
             },
-          });
+            (token) => {
+              set((s) => ({ streamingContent: s.streamingContent + token }));
+            }
+          );
 
           const assistantMsg: Message = {
             id: uid(),
@@ -197,6 +201,9 @@ export const useStore = create<AppState>()(
       useElevenLabsTts: false,
       setUseElevenLabsTts: (useElevenLabsTts) => set({ useElevenLabsTts }),
 
+      adaptiveLoops: true,
+      setAdaptiveLoops: (adaptiveLoops) => set({ adaptiveLoops }),
+
       voiceMode: false,
       setVoiceMode: (voiceMode) => set({ voiceMode }),
 
@@ -220,6 +227,7 @@ export const useStore = create<AppState>()(
         elevenlabsApiKey: state.elevenlabsApiKey,
         elevenlabsVoiceId: state.elevenlabsVoiceId,
         useElevenLabsTts: state.useElevenLabsTts,
+        adaptiveLoops: state.adaptiveLoops,
         hasSeenLanding: state.hasSeenLanding,
       }),
       onRehydrateStorage: () => {

@@ -10,9 +10,8 @@ import {
   isSpeechRecognitionSupported,
   pause,
 } from "../core/voice";
-import { chat } from "../core/providers";
-import { buildSystemPrompt } from "../core/soul";
-import { getRelationalContext, rememberMessage } from "../core/memory";
+import { generateResponse } from "../core/conversation";
+import { rememberMessage } from "../core/memory";
 
 type VoiceState = "listening" | "processing" | "speaking" | "error" | "paused";
 
@@ -124,20 +123,21 @@ export default function VoiceMode() {
     rememberMessage(userMsg);
 
     try {
-      const relationalContext = getRelationalContext();
-      const systemPrompt = buildSystemPrompt(store.userName, relationalContext);
-
-      const aiResponse = await chat({
-        provider: cfg.provider,
-        model: cfg.model || "glm-5.2",
-        ollamaVisionModel: cfg.ollamaVisionModel,
-        messages: [{ role: "system", content: systemPrompt }, ...conversationRef.current],
-        apiKey: cfg.provider === "ollama-cloud" ? cfg.ollamaCloudApiKey : cfg.apiKey,
-        ollamaUrl: cfg.ollamaUrl,
-        ollamaProxyUrl: cfg.ollamaProxyUrl,
-        ollamaCloudApiKey: cfg.ollamaCloudApiKey,
-        ollamaCloudUrl: cfg.ollamaCloudUrl,
-      });
+      const aiResponse = await generateResponse(
+        conversationRef.current,
+        {
+          provider: cfg.provider,
+          model: cfg.model || "glm-5.2",
+          ollamaVisionModel: cfg.ollamaVisionModel,
+          apiKey: cfg.apiKey,
+          ollamaUrl: cfg.ollamaUrl,
+          ollamaProxyUrl: cfg.ollamaProxyUrl,
+          ollamaCloudApiKey: cfg.ollamaCloudApiKey,
+          ollamaCloudUrl: cfg.ollamaCloudUrl,
+          userName: store.userName,
+          adaptiveLoops: store.adaptiveLoops,
+        }
+      );
 
       conversationRef.current.push({ role: "assistant", content: aiResponse });
       setResponse(aiResponse);
