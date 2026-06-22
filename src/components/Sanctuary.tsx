@@ -30,9 +30,9 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function exportConversation(messages: Message[], userName: string) {
+function exportConversation(messages: Message[], userName: string, dinoBuddyMode: boolean) {
   const lines: string[] = [
-    "# You — Conversation Journal",
+    dinoBuddyMode ? "# Dino Buddy — Conversation Journal 🦖" : "# You — Conversation Journal",
     `*Exported ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}*`,
     "",
     "---",
@@ -41,7 +41,7 @@ function exportConversation(messages: Message[], userName: string) {
 
   for (const msg of messages) {
     const time = new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-    const who = msg.role === "user" ? (userName || "You") : "You (AI)";
+    const who = msg.role === "user" ? (userName || "You") : dinoBuddyMode ? "Dino Buddy" : "You (AI)";
     lines.push(`**${who}** — *${time}*`);
     lines.push("");
     lines.push(msg.content);
@@ -50,7 +50,7 @@ function exportConversation(messages: Message[], userName: string) {
     lines.push("");
   }
 
-  lines.push("*Whatever you carry, you can set it down here.*");
+  lines.push(dinoBuddyMode ? "*🦖 Thanks for hanging out, bro.*" : "*Whatever you carry, you can set it down here.*");
 
   const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
@@ -70,6 +70,7 @@ export default function Sanctuary() {
   const setView = useStore((s) => s.setView);
   const setVoiceMode = useStore((s) => s.setVoiceMode);
   const userName = useStore((s) => s.userName);
+  const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [entered, setEntered] = useState(false);
@@ -159,7 +160,7 @@ export default function Sanctuary() {
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <>
-              <button onClick={() => exportConversation(messages, userName)} className="icon-btn" title="Export journal">
+              <button onClick={() => exportConversation(messages, userName, dinoBuddyMode)} className="icon-btn" title="Export journal">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
@@ -187,10 +188,18 @@ export default function Sanctuary() {
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full min-h-[40vh] gap-4">
               <p className="font-display text-3xl text-warm-50">
-                {userName ? `Welcome back, ${userName}` : "Hello"}
+                {dinoBuddyMode
+                  ? userName
+                    ? `Hey ${userName}! 🦖`
+                    : "Hey! 🦖"
+                  : userName
+                    ? `Welcome back, ${userName}`
+                    : "Hello"}
               </p>
               <p className="font-body text-sm text-secondary max-w-sm text-center leading-relaxed">
-                Whatever you carry, you can set it down here. Say anything — or nothing at all.
+                {dinoBuddyMode
+                  ? "Good to see you. Say anything — or just hang out. I'm right here."
+                  : "Whatever you carry, you can set it down here. Say anything — or nothing at all."}
               </p>
             </div>
           )}
@@ -271,7 +280,7 @@ export default function Sanctuary() {
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="Speak freely..."
+              placeholder={dinoBuddyMode ? "What's on your mind?" : "Speak freely..."}
               rows={1}
               className="flex-1 bg-transparent text-primary placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40"
             />

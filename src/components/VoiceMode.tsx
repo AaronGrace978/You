@@ -136,6 +136,7 @@ export default function VoiceMode() {
           ollamaCloudUrl: cfg.ollamaCloudUrl,
           userName: store.userName,
           adaptiveLoops: store.adaptiveLoops,
+          dinoBuddyMode: store.dinoBuddyMode,
         }
       );
 

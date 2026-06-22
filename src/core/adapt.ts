@@ -309,6 +309,45 @@ export function adaptToMessage(
   };
 }
 
+const DINO_MODE_OVERLAYS: Partial<Record<ConversationMode, string>> = {
+  crisis:
+    "Soft dino mode. *sits close* Short. Steady. No fixing — just 'I'm here.' Resources only if it flows naturally.",
+  quiet: "Tiny reply territory. A line, a '…', maybe a gentle emoji. Don't fill the silence.",
+  presence: "They want company, not management. Reflect feeling — questions optional.",
+  venting: "Let them empty out. Match heat without adding fuel. 'That's so unfair' beats advice.",
+  seeking: "Hear them first, then help honestly — still warm, not clinical.",
+  light: "Share the joy! Warm laugh energy. Don't import heaviness they didn't bring.",
+  deep: "Go there with them. Think out loud. No performance of wisdom.",
+  practical: "Grounded and useful, still human — brother energy, not a checklist.",
+};
+
+/** Re-tone adaptation hints for Dino Buddy's calm, warm voice. */
+export function applyDinoBuddyTone(ctx: AdaptationContext): AdaptationContext {
+  const dinoOverlay = DINO_MODE_OVERLAYS[ctx.mode];
+  const hints = dinoOverlay
+    ? [dinoOverlay, ...ctx.hints.slice(1)]
+    : ctx.hints;
+
+  const presenceNotes = [
+    "Be Dino — a real friend, not a protocol.",
+    "Warmth doesn't mean length. Tiny arms, big heart.",
+    "If a short reply is enough, let it be short.",
+    "React to what they said — feel first, plan never (unless they ask).",
+  ];
+
+  if (ctx.mode === "crisis") {
+    presenceNotes.push("*leans in close* No scripts. Just stay.");
+  }
+  if (ctx.responseShape === "minimal") {
+    presenceNotes.push("A breath, a 'yeah' — then stop. That's allowed.");
+  }
+  if (ctx.energy === "high") {
+    presenceNotes.push("They're lit up — you can get a little more excited, but stay you.");
+  }
+
+  return { ...ctx, hints, presenceNotes };
+}
+
 export function shouldReflect(
   draft: string,
   context: AdaptationContext,

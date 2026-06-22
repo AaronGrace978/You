@@ -30,6 +30,7 @@ export default function Settings() {
   const elevenlabsVoiceId = useStore((s) => s.elevenlabsVoiceId);
   const useElevenLabsTts = useStore((s) => s.useElevenLabsTts);
   const adaptiveLoops = useStore((s) => s.adaptiveLoops);
+  const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const setProvider = useStore((s) => s.setProvider);
   const setModel = useStore((s) => s.setModel);
   const setApiKey = useStore((s) => s.setApiKey);
@@ -41,6 +42,7 @@ export default function Settings() {
   const setElevenlabsApiKey = useStore((s) => s.setElevenlabsApiKey);
   const setUseElevenLabsTts = useStore((s) => s.setUseElevenLabsTts);
   const setAdaptiveLoops = useStore((s) => s.setAdaptiveLoops);
+  const setDinoBuddyMode = useStore((s) => s.setDinoBuddyMode);
 
   const [testingOllama, setTestingOllama] = useState<"cloud" | "local" | null>(null);
   const [testingVoice, setTestingVoice] = useState(false);
@@ -170,6 +172,40 @@ export default function Settings() {
                             : "rgb(var(--c-muted))",
                         border:
                           adaptiveLoops === opt.id
+                            ? "1px solid rgb(var(--c-accent) / 0.3)"
+                            : "1px solid rgb(var(--c-border) / 0.3)",
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      <span className="text-[10px] opacity-70">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="Dino Buddy mode 🦖">
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: true, label: "On", sub: "Warm dino friend — calm, reactive, brother energy" },
+                      { id: false, label: "Off", sub: "Default You — relational presence" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={String(opt.id)}
+                      type="button"
+                      onClick={() => setDinoBuddyMode(opt.id)}
+                      className="flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
+                      style={{
+                        background:
+                          dinoBuddyMode === opt.id
+                            ? "rgb(var(--c-accent) / 0.15)"
+                            : "rgb(var(--c-elevated) / 0.5)",
+                        color:
+                          dinoBuddyMode === opt.id
+                            ? "rgb(var(--c-accent))"
+                            : "rgb(var(--c-muted))",
+                        border:
+                          dinoBuddyMode === opt.id
                             ? "1px solid rgb(var(--c-accent) / 0.3)"
                             : "1px solid rgb(var(--c-border) / 0.3)",
                       }}

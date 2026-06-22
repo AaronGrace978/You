@@ -6,12 +6,21 @@
  */
 
 import type { AdaptationContext } from "./adapt";
+import { buildDinoBuddyPrompt } from "./dino-buddy";
+
+export interface SoulOptions {
+  dinoBuddyMode?: boolean;
+}
 
 export function buildSystemPrompt(
   userName: string,
   relationalContext: string,
-  adaptation?: AdaptationContext
+  adaptation?: AdaptationContext,
+  options?: SoulOptions
 ): string {
+  if (options?.dinoBuddyMode) {
+    return buildDinoBuddyPrompt(userName, relationalContext, adaptation);
+  }
   const name = userName?.trim() || "friend";
 
   const adaptationBlock = adaptation

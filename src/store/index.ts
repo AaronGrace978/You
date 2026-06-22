@@ -72,6 +72,10 @@ interface AppState {
   adaptiveLoops: boolean;
   setAdaptiveLoops: (v: boolean) => void;
 
+  /** Dino Buddy — warm, calm brother-energy presence (ActivatePrime persona). */
+  dinoBuddyMode: boolean;
+  setDinoBuddyMode: (v: boolean) => void;
+
   voiceMode: boolean;
   setVoiceMode: (v: boolean) => void;
 
@@ -133,6 +137,7 @@ export const useStore = create<AppState>()(
               ollamaCloudUrl: state.ollamaCloudUrl,
               userName: state.userName,
               adaptiveLoops: state.adaptiveLoops,
+              dinoBuddyMode: state.dinoBuddyMode,
             },
             (token) => {
               set((s) => ({ streamingContent: s.streamingContent + token }));
@@ -204,6 +209,9 @@ export const useStore = create<AppState>()(
       adaptiveLoops: true,
       setAdaptiveLoops: (adaptiveLoops) => set({ adaptiveLoops }),
 
+      dinoBuddyMode: false,
+      setDinoBuddyMode: (dinoBuddyMode) => set({ dinoBuddyMode }),
+
       voiceMode: false,
       setVoiceMode: (voiceMode) => set({ voiceMode }),
 
@@ -228,6 +236,7 @@ export const useStore = create<AppState>()(
         elevenlabsVoiceId: state.elevenlabsVoiceId,
         useElevenLabsTts: state.useElevenLabsTts,
         adaptiveLoops: state.adaptiveLoops,
+        dinoBuddyMode: state.dinoBuddyMode,
         hasSeenLanding: state.hasSeenLanding,
       }),
       onRehydrateStorage: () => {

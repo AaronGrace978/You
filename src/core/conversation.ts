@@ -1,4 +1,4 @@
-import { adaptToMessage, shouldReflect, buildReflectPrompt } from "./adapt";
+import { adaptToMessage, applyDinoBuddyTone, shouldReflect, buildReflectPrompt } from "./adapt";
 import { getRelationalContext } from "./memory";
 import { buildSystemPrompt } from "./soul";
 import { chat, type OllamaCloudSettings } from "./providers";
@@ -21,6 +21,7 @@ export interface ConversationConfig {
   ollamaCloudUrl?: string;
   userName: string;
   adaptiveLoops?: boolean;
+  dinoBuddyMode?: boolean;
 }
 
 function resolveApiKey(cfg: ConversationConfig): string | undefined {
@@ -80,9 +81,14 @@ export async function generateResponse(
   const userMessage = lastUser?.content || "";
   const recentUser = history.filter((m) => m.role === "user").slice(-4).map((m) => m.content);
 
-  const adaptation = adaptToMessage(userMessage, recentUser.slice(0, -1));
+  let adaptation = adaptToMessage(userMessage, recentUser.slice(0, -1));
+  if (cfg.dinoBuddyMode) {
+    adaptation = applyDinoBuddyTone(adaptation);
+  }
   const relationalContext = getRelationalContext();
-  const systemPrompt = buildSystemPrompt(cfg.userName, relationalContext, adaptation);
+  const systemPrompt = buildSystemPrompt(cfg.userName, relationalContext, adaptation, {
+    dinoBuddyMode: cfg.dinoBuddyMode,
+  });
 
   const chatReq = {
     provider: cfg.provider,
