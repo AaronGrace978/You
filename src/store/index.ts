@@ -76,6 +76,10 @@ interface AppState {
   dinoBuddyMode: boolean;
   setDinoBuddyMode: (v: boolean) => void;
 
+  /** 0–100 Dino energy (calm → volcanic). Only applies when dinoBuddyMode is on. */
+  dinoEnergy: number;
+  setDinoEnergy: (v: number) => void;
+
   voiceMode: boolean;
   setVoiceMode: (v: boolean) => void;
 
@@ -138,6 +142,7 @@ export const useStore = create<AppState>()(
               userName: state.userName,
               adaptiveLoops: state.adaptiveLoops,
               dinoBuddyMode: state.dinoBuddyMode,
+              dinoEnergy: state.dinoEnergy,
             },
             (token) => {
               set((s) => ({ streamingContent: s.streamingContent + token }));
@@ -212,6 +217,9 @@ export const useStore = create<AppState>()(
       dinoBuddyMode: false,
       setDinoBuddyMode: (dinoBuddyMode) => set({ dinoBuddyMode }),
 
+      dinoEnergy: 35,
+      setDinoEnergy: (dinoEnergy) => set({ dinoEnergy: Math.max(0, Math.min(100, dinoEnergy)) }),
+
       voiceMode: false,
       setVoiceMode: (voiceMode) => set({ voiceMode }),
 
@@ -237,6 +245,7 @@ export const useStore = create<AppState>()(
         useElevenLabsTts: state.useElevenLabsTts,
         adaptiveLoops: state.adaptiveLoops,
         dinoBuddyMode: state.dinoBuddyMode,
+        dinoEnergy: state.dinoEnergy,
         hasSeenLanding: state.hasSeenLanding,
       }),
       onRehydrateStorage: () => {

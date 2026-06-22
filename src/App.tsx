@@ -7,6 +7,7 @@ import Settings from "./components/Settings";
 import VoiceMode from "./components/VoiceMode";
 import InstallHint from "./components/InstallHint";
 import { applyThemeChrome, watchThemeChrome } from "./core/theme-chrome";
+import { initMemoryStore } from "./core/memory";
 
 export default function App() {
   const view = useStore((s) => s.view);
@@ -17,6 +18,10 @@ export default function App() {
     applyThemeChrome(theme);
     return watchThemeChrome(theme);
   }, [theme]);
+
+  useEffect(() => {
+    void initMemoryStore();
+  }, []);
 
   return (
     <div className="app-shell">

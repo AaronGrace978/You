@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore, type Provider } from "../store";
-import { getMemoryStats } from "../core/memory";
+import { getMemoryStats, getPinnedMemories, pinMemory, unpinMemory, clearAllMemory, getDeepInsights } from "../core/memory";
+import { getDinoEnergyTier } from "../core/dino-buddy";
 import { testOllamaConnection, effectiveProxyUrl } from "../core/providers";
 import { testElevenLabsVoice, testBrowserVoice, validateElevenLabsKey, ELEVENLABS_KEY_URL } from "../core/voice";
 import {
@@ -31,6 +32,7 @@ export default function Settings() {
   const useElevenLabsTts = useStore((s) => s.useElevenLabsTts);
   const adaptiveLoops = useStore((s) => s.adaptiveLoops);
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
+  const dinoEnergy = useStore((s) => s.dinoEnergy);
   const setProvider = useStore((s) => s.setProvider);
   const setModel = useStore((s) => s.setModel);
   const setApiKey = useStore((s) => s.setApiKey);
@@ -43,6 +45,7 @@ export default function Settings() {
   const setUseElevenLabsTts = useStore((s) => s.setUseElevenLabsTts);
   const setAdaptiveLoops = useStore((s) => s.setAdaptiveLoops);
   const setDinoBuddyMode = useStore((s) => s.setDinoBuddyMode);
+  const setDinoEnergy = useStore((s) => s.setDinoEnergy);
 
   const [testingOllama, setTestingOllama] = useState<"cloud" | "local" | null>(null);
   const [testingVoice, setTestingVoice] = useState(false);
@@ -114,6 +117,7 @@ export default function Settings() {
           : ANTHROPIC_MODELS[0].id);
 
   const proxyActive = effectiveProxyUrl(cloudSettings).length > 0;
+  const dinoTier = getDinoEnergyTier(dinoEnergy);
 
   return (
     <div className="h-full w-full flex flex-col animate-fade-in">
@@ -216,6 +220,31 @@ export default function Settings() {
                   ))}
                 </div>
               </Field>
+              {dinoBuddyMode && (
+                <Field label={`Dino energy — ${dinoTier.label} ${dinoEnergy >= 80 ? "🌋" : dinoEnergy >= 50 ? "⚡" : "🦖"}`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={dinoEnergy}
+                    onChange={(e) => setDinoEnergy(Number(e.target.value))}
+                    className="w-full accent-[rgb(var(--c-accent))]"
+                  />
+                  <div className="flex justify-between font-body text-[10px] mt-1" style={{ color: "rgb(var(--c-muted))" }}>
+                    <span>Calm</span>
+                    <span>Enthusiastic</span>
+                    <span>Volcanic</span>
+                  </div>
+                  <p className="font-body text-[10px] mt-2 leading-relaxed opacity-80" style={{ color: "rgb(var(--c-muted))" }}>
+                    {dinoEnergy < 50
+                      ? "Warm, thoughtful, gentle — default Dino vibe."
+                      : dinoEnergy < 80
+                        ? "Balanced excitement — caps for emphasis."
+                        : "Explosive joy — ALL CAPS when hyped!"}
+                  </p>
+                </Field>
+              )}
             </div>
           </Section>
 
@@ -818,16 +847,40 @@ function MemorySection() {
   const clearConversation = useStore((s) => s.clearConversation);
   const messages = useStore((s) => s.messages);
   const [confirming, setConfirming] = useState(false);
+  const [pinText, setPinText] = useState("");
+  const [pins, setPins] = useState(() => getPinnedMemories());
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const stats = getMemoryStats();
+  const insights = getDeepInsights().slice(0, 4);
 
-  const handleClearAll = () => {
+  const refreshPins = () => {
+    setPins(getPinnedMemories());
+    setRefreshKey((k) => k + 1);
+  };
+
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+
+  const handlePin = () => {
+    if (pinMemory(pinText)) {
+      setPinText("");
+      refreshPins();
+    }
+  };
+
+  const handlePinLast = () => {
+    if (lastUserMessage && pinMemory(lastUserMessage.content)) {
+      refreshPins();
+    }
+  };
+
+  const handleClearAll = async () => {
     if (!confirming) {
       setConfirming(true);
       setTimeout(() => setConfirming(false), 3000);
       return;
     }
-    localStorage.removeItem("you-relational-memory");
+    await clearAllMemory();
     clearConversation();
     setConfirming(false);
     window.location.reload();
@@ -846,21 +899,100 @@ function MemorySection() {
             <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>days together</p>
           </div>
           <div className="rounded-xl px-3 py-2.5 text-center" style={{ background: "rgb(var(--c-elevated) / 0.5)" }}>
-            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{stats.themes}</p>
-            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>themes</p>
+            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{stats.pinned}</p>
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>pinned</p>
           </div>
           <div className="rounded-xl px-3 py-2.5 text-center" style={{ background: "rgb(var(--c-elevated) / 0.5)" }}>
-            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{messages.length}</p>
-            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>messages</p>
+            <p className="font-display text-lg" style={{ color: "rgb(var(--c-text))" }}>{stats.corpusSize}</p>
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>recall index</p>
           </div>
         </div>
 
+        <Field label="Remember this (you choose what stays)">
+          <textarea
+            value={pinText}
+            onChange={(e) => setPinText(e.target.value)}
+            placeholder="Something you want them to always carry…"
+            rows={2}
+            className="input-field resize-none"
+          />
+          <div className="flex flex-wrap gap-2 mt-2">
+            <button
+              type="button"
+              onClick={handlePin}
+              disabled={!pinText.trim()}
+              className="px-3 py-1.5 rounded-lg font-body text-xs cursor-pointer disabled:opacity-40"
+              style={{ background: "rgb(var(--c-accent) / 0.15)", color: "rgb(var(--c-accent))" }}
+            >
+              Pin memory
+            </button>
+            {lastUserMessage && (
+              <button
+                type="button"
+                onClick={handlePinLast}
+                className="px-3 py-1.5 rounded-lg font-body text-xs cursor-pointer"
+                style={{ background: "rgb(var(--c-elevated) / 0.5)", color: "rgb(var(--c-muted))" }}
+              >
+                Pin last message
+              </button>
+            )}
+          </div>
+        </Field>
+
+        {pins.length > 0 && (
+          <div className="space-y-2" key={refreshKey}>
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>
+              Pinned
+            </p>
+            {pins.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-start gap-2 rounded-xl px-3 py-2"
+                style={{ background: "rgb(var(--c-elevated) / 0.4)" }}
+              >
+                <p className="flex-1 font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-text))" }}>
+                  {p.text}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    unpinMemory(p.id);
+                    refreshPins();
+                  }}
+                  className="shrink-0 font-body text-[10px] cursor-pointer opacity-60 hover:opacity-100"
+                  style={{ color: "rgb(var(--c-muted))" }}
+                  aria-label="Remove pin"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {insights.length > 0 && (
+          <div className="space-y-2">
+            <p className="font-body text-[10px] tracking-wider uppercase" style={{ color: "rgb(var(--c-muted))" }}>
+              What stays with them (auto-distilled)
+            </p>
+            {insights.map((insight, i) => (
+              <p
+                key={i}
+                className="font-body text-[11px] leading-relaxed rounded-lg px-3 py-2"
+                style={{ background: "rgb(var(--c-elevated) / 0.35)", color: "rgb(var(--c-muted))" }}
+              >
+                {insight.text}
+              </p>
+            ))}
+          </div>
+        )}
+
         <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
-          Your conversations and relational memory are stored locally on your device. API keys stay in your browser only.
+          Semantic recall finds relevant past moments when you talk. Everything stays on your device.
         </p>
 
         <button
-          onClick={handleClearAll}
+          onClick={() => void handleClearAll()}
           className="w-full px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
           style={{
             background: confirming ? "rgb(180 60 60 / 0.2)" : "rgb(var(--c-elevated) / 0.5)",

@@ -22,6 +22,7 @@ export interface ConversationConfig {
   userName: string;
   adaptiveLoops?: boolean;
   dinoBuddyMode?: boolean;
+  dinoEnergy?: number;
 }
 
 function resolveApiKey(cfg: ConversationConfig): string | undefined {
@@ -85,9 +86,10 @@ export async function generateResponse(
   if (cfg.dinoBuddyMode) {
     adaptation = applyDinoBuddyTone(adaptation);
   }
-  const relationalContext = getRelationalContext();
+  const relationalContext = getRelationalContext(userMessage);
   const systemPrompt = buildSystemPrompt(cfg.userName, relationalContext, adaptation, {
     dinoBuddyMode: cfg.dinoBuddyMode,
+    dinoEnergy: cfg.dinoEnergy,
   });
 
   const chatReq = {

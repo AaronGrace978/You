@@ -458,3 +458,64 @@ export function stopAll(): void {
 }
 
 export const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export interface SpeechStreamOptions {
+  useElevenLabs?: boolean;
+  elevenlabsApiKey?: string;
+  elevenlabsVoiceId?: string;
+}
+
+/** Speak LLM tokens sentence-by-sentence as they arrive. */
+export class SpeechStreamQueue {
+  private buffer = "";
+  private spokenChars = 0;
+  private queue: Promise<void> = Promise.resolve();
+  private stopped = false;
+  private options: SpeechStreamOptions;
+
+  constructor(options: SpeechStreamOptions = {}) {
+    this.options = options;
+  }
+
+  feed(token: string): void {
+    if (this.stopped) return;
+    this.buffer += token;
+    this.drainSentences();
+  }
+
+  private drainSentences(): void {
+    const rest = this.buffer.slice(this.spokenChars);
+    const match = rest.match(/^([\s\S]*?[.!?…]+)(\s+|$)/);
+    if (!match) return;
+
+    const sentence = match[1].trim();
+    this.spokenChars += match[0].length;
+    if (sentence.length >= 8) {
+      this.enqueue(sentence);
+    }
+    this.drainSentences();
+  }
+
+  private enqueue(text: string): void {
+    this.queue = this.queue.then(() => {
+      if (this.stopped) return;
+      return speakAloud(text, this.options.elevenlabsApiKey || "", this.options.elevenlabsVoiceId || "", {
+        useElevenLabs: this.options.useElevenLabs,
+      }).then(() => {});
+    });
+  }
+
+  async flush(): Promise<void> {
+    const remainder = this.buffer.slice(this.spokenChars).trim();
+    if (remainder.length >= 4 && !this.stopped) {
+      this.enqueue(remainder);
+    }
+    await this.queue;
+  }
+
+  stop(): void {
+    this.stopped = true;
+    stopSpeaking();
+  }
+}
+

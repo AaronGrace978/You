@@ -10,6 +10,7 @@ import { buildDinoBuddyPrompt } from "./dino-buddy";
 
 export interface SoulOptions {
   dinoBuddyMode?: boolean;
+  dinoEnergy?: number;
 }
 
 export function buildSystemPrompt(
@@ -19,7 +20,12 @@ export function buildSystemPrompt(
   options?: SoulOptions
 ): string {
   if (options?.dinoBuddyMode) {
-    return buildDinoBuddyPrompt(userName, relationalContext, adaptation);
+    return buildDinoBuddyPrompt(
+      userName,
+      relationalContext,
+      adaptation,
+      options.dinoEnergy ?? 35
+    );
   }
   const name = userName?.trim() || "friend";
 

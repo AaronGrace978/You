@@ -9,9 +9,11 @@ import {
   unlockAudioForPlayback,
   isSpeechRecognitionSupported,
   pause,
+  SpeechStreamQueue,
 } from "../core/voice";
 import { generateResponse } from "../core/conversation";
 import { rememberMessage } from "../core/memory";
+import { acquireWakeLock, releaseWakeLock, watchWakeLockRenew } from "../core/wake-lock";
 
 type VoiceState = "listening" | "processing" | "speaking" | "error" | "paused";
 
@@ -123,6 +125,15 @@ export default function VoiceMode() {
     rememberMessage(userMsg);
 
     try {
+      const draftRef = { text: "" };
+      let speakingStarted = false;
+
+      const speechQueue = new SpeechStreamQueue({
+        useElevenLabs: cfg.useElevenLabsTts,
+        elevenlabsApiKey: cfg.elevenlabsApiKey,
+        elevenlabsVoiceId: cfg.elevenlabsVoiceId,
+      });
+
       const aiResponse = await generateResponse(
         conversationRef.current,
         {
@@ -137,8 +148,20 @@ export default function VoiceMode() {
           userName: store.userName,
           adaptiveLoops: store.adaptiveLoops,
           dinoBuddyMode: store.dinoBuddyMode,
+          dinoEnergy: store.dinoEnergy,
+        },
+        (token) => {
+          draftRef.text += token;
+          setResponse(draftRef.text);
+          if (!speakingStarted && draftRef.text.trim().length > 0) {
+            speakingStarted = true;
+            setState("speaking");
+          }
+          speechQueue.feed(token);
         }
       );
+
+      await speechQueue.flush();
 
       conversationRef.current.push({ role: "assistant", content: aiResponse });
       setResponse(aiResponse);
@@ -155,18 +178,13 @@ export default function VoiceMode() {
       }));
       rememberMessage(assistantMsg);
 
-      setState("speaking");
-      const { engine, warning } = await speakAloud(
-        aiResponse,
-        cfg.elevenlabsApiKey,
-        cfg.elevenlabsVoiceId,
-        { useElevenLabs: cfg.useElevenLabsTts }
-      );
-      if (warning) setHint(warning);
-      else if (engine === "browser" && cfg.useElevenLabsTts && !cfg.elevenlabsApiKey.trim()) {
+      if (!speakingStarted && aiResponse.trim()) {
+        setState("speaking");
+        await speakAloud(aiResponse, cfg.elevenlabsApiKey, cfg.elevenlabsVoiceId, {
+          useElevenLabs: cfg.useElevenLabsTts,
+        });
+      } else if (cfg.useElevenLabsTts && !cfg.elevenlabsApiKey.trim()) {
         setHint("ElevenLabs is on but no API key — using device voice. Add a key in Settings.");
-      } else if (engine === "browser" && !cfg.useElevenLabsTts) {
-        setHint("Using device voice.");
       }
     } catch (err) {
       console.error("Voice mode error:", err);
@@ -226,9 +244,19 @@ export default function VoiceMode() {
   useEffect(() => {
     activeRef.current = true;
     unlockAudioForPlayback();
+
+    let releaseLock = () => {};
+    acquireWakeLock().then((release) => {
+      releaseLock = release;
+    });
+    const unwatchLock = watchWakeLockRenew(() => activeRef.current);
+
     beginListeningRef.current();
     return () => {
       activeRef.current = false;
+      unwatchLock();
+      releaseLock();
+      void releaseWakeLock();
       stopAll();
     };
   }, []);

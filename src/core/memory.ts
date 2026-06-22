@@ -1,4 +1,12 @@
 import type { Message } from "../store";
+import {
+  loadCorpus,
+  addCorpusEntry,
+  removeCorpusEntry,
+  clearCorpus,
+  type CorpusEntry,
+} from "./idb-memory";
+import { rankByRelevance } from "./semantic";
 
 interface MemoryEntry {
   content: string;
@@ -6,6 +14,12 @@ interface MemoryEntry {
   timestamp: number;
   emotionalWeight: number;
   tags: string[];
+}
+
+export interface PinnedMemory {
+  id: string;
+  text: string;
+  createdAt: number;
 }
 
 interface RelationalState {
@@ -16,6 +30,7 @@ interface RelationalState {
   firstSeen: number;
   deepInsights: { text: string; weight: number; tags: string[] }[];
   recentOpenings: string[];
+  pinnedMemories: PinnedMemory[];
 }
 
 const STORAGE_KEY = "you-relational-memory";
@@ -42,8 +57,12 @@ const EMOTIONAL_MARKERS = [
 const MAX_RECENT = 100;
 const MAX_INSIGHTS = 24;
 const MAX_OPENINGS = 8;
+const MAX_PINNED = 20;
+const MAX_CORPUS = 500;
 
 let state: RelationalState = loadState();
+let corpusCache: CorpusEntry[] = [];
+let corpusReady = false;
 
 function loadState(): RelationalState {
   try {
@@ -63,6 +82,7 @@ function loadState(): RelationalState {
         firstSeen: parsed.firstSeen || Date.now(),
         deepInsights,
         recentOpenings: parsed.recentOpenings || [],
+        pinnedMemories: parsed.pinnedMemories || [],
       };
     }
   } catch {}
@@ -74,6 +94,7 @@ function loadState(): RelationalState {
     firstSeen: Date.now(),
     deepInsights: [],
     recentOpenings: [],
+    pinnedMemories: [],
   };
 }
 
@@ -83,9 +104,43 @@ function saveState(): void {
   } catch {}
 }
 
+/** Load IndexedDB corpus + backfill from recent memories. */
+export async function initMemoryStore(): Promise<void> {
+  if (corpusReady) return;
+  corpusCache = await loadCorpus();
+
+  if (corpusCache.length === 0 && state.recentMemories.length > 0) {
+    for (const mem of state.recentMemories) {
+      if (mem.role !== "user") continue;
+      const entry: CorpusEntry = {
+        id: crypto.randomUUID(),
+        ...mem,
+      };
+      corpusCache.push(entry);
+      await addCorpusEntry(entry);
+    }
+  }
+
+  corpusReady = true;
+}
+
 function extractOpening(content: string): string {
   const line = content.trim().split(/\n/)[0] || "";
   return line.slice(0, 60).toLowerCase();
+}
+
+async function indexForSearch(entry: MemoryEntry): Promise<void> {
+  if (entry.role !== "user" || entry.content.trim().length < 12) return;
+
+  const corpusEntry: CorpusEntry = {
+    id: crypto.randomUUID(),
+    ...entry,
+  };
+  corpusCache.push(corpusEntry);
+  if (corpusCache.length > MAX_CORPUS) {
+    corpusCache = corpusCache.slice(-MAX_CORPUS);
+  }
+  await addCorpusEntry(corpusEntry);
 }
 
 export function rememberMessage(msg: Message): void {
@@ -115,6 +170,39 @@ export function rememberMessage(msg: Message): void {
   });
 
   saveState();
+  void indexForSearch(entry);
+}
+
+export function pinMemory(text: string): PinnedMemory | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (state.pinnedMemories.some((p) => p.text === trimmed)) return null;
+
+  const pin: PinnedMemory = {
+    id: crypto.randomUUID(),
+    text: trimmed.length > 400 ? trimmed.slice(0, 400) + "…" : trimmed,
+    createdAt: Date.now(),
+  };
+  state.pinnedMemories.unshift(pin);
+  if (state.pinnedMemories.length > MAX_PINNED) {
+    state.pinnedMemories = state.pinnedMemories.slice(0, MAX_PINNED);
+  }
+  saveState();
+  return pin;
+}
+
+export function unpinMemory(id: string): void {
+  state.pinnedMemories = state.pinnedMemories.filter((p) => p.id !== id);
+  saveState();
+}
+
+export function getPinnedMemories(): PinnedMemory[] {
+  return [...state.pinnedMemories];
+}
+
+export async function forgetFromCorpus(id: string): Promise<void> {
+  corpusCache = corpusCache.filter((c) => c.id !== id);
+  await removeCorpusEntry(id);
 }
 
 function distillOldMemories(): void {
@@ -208,7 +296,28 @@ export function getRecentOpenings(): string[] {
   return [...state.recentOpenings];
 }
 
-export function getRelationalContext(): string {
+function getSemanticRecall(currentMessage: string): string[] {
+  if (!currentMessage.trim() || corpusCache.length === 0) return [];
+
+  const pinnedTexts = new Set(state.pinnedMemories.map((p) => p.text));
+  const docs = corpusCache
+    .filter((c) => c.role === "user")
+    .filter((c) => !pinnedTexts.has(c.content))
+    .map((c) => ({
+      id: c.id,
+      content: c.content,
+      emotionalWeight: c.emotionalWeight,
+      timestamp: c.timestamp,
+    }));
+
+  const ranked = rankByRelevance(currentMessage, docs, 3);
+  return ranked.map(({ doc }) => {
+    const snippet = doc.content.length > 160 ? doc.content.slice(0, 160) + "…" : doc.content;
+    return `"${snippet}"`;
+  });
+}
+
+export function getRelationalContext(currentMessage?: string): string {
   const parts: string[] = [];
 
   if (state.interactions > 0) {
@@ -230,6 +339,19 @@ export function getRelationalContext(): string {
     parts.push(
       `Their emotional baseline with you: ${baselineWord} (trend lately: ${trend}). Let that inform how much you say — not every turn needs depth.`
     );
+  }
+
+  if (state.pinnedMemories.length > 0) {
+    parts.push("THEY ASKED YOU TO REMEMBER (honor these — they're explicit):");
+    state.pinnedMemories.slice(0, 8).forEach((p) => parts.push(`  - ${p.text}`));
+  }
+
+  if (currentMessage) {
+    const recalled = getSemanticRecall(currentMessage);
+    if (recalled.length > 0) {
+      parts.push("RELEVANT FROM PAST CONVERSATIONS (only if it fits naturally — never invent beyond this):");
+      recalled.forEach((r) => parts.push(`  - ${r}`));
+    }
   }
 
   const weightedThemes = Object.entries(state.weightedThemes)
@@ -290,5 +412,29 @@ export function getMemoryStats() {
     daysTogether: Math.floor((Date.now() - state.firstSeen) / 86400000),
     themes: Object.keys(state.themes).length,
     deepInsights: state.deepInsights.length,
+    pinned: state.pinnedMemories.length,
+    corpusSize: corpusCache.length,
   };
+}
+
+export function getDeepInsights(): { text: string; weight: number }[] {
+  return [...state.deepInsights].sort((a, b) => b.weight - a.weight);
+}
+
+export async function clearAllMemory(): Promise<void> {
+  state = {
+    interactions: 0,
+    themes: {},
+    weightedThemes: {},
+    recentMemories: [],
+    firstSeen: Date.now(),
+    deepInsights: [],
+    recentOpenings: [],
+    pinnedMemories: [],
+  };
+  corpusCache = [];
+  corpusReady = true;
+  saveState();
+  localStorage.removeItem(STORAGE_KEY);
+  await clearCorpus();
 }
