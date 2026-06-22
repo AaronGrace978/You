@@ -11,9 +11,11 @@ interface MemoryEntry {
 interface RelationalState {
   interactions: number;
   themes: Record<string, number>;
+  weightedThemes: Record<string, number>;
   recentMemories: MemoryEntry[];
   firstSeen: number;
-  deepInsights: string[];
+  deepInsights: { text: string; weight: number; tags: string[] }[];
+  recentOpenings: string[];
 }
 
 const STORAGE_KEY = "you-relational-memory";
@@ -33,10 +35,13 @@ const EMOTIONAL_MARKERS = [
   { pattern: /\b(work|job|career|boss|fired|quit)\b/i, weight: 0.5, tag: "work" },
   { pattern: /\b(friend|friendship|betrayed|trust)\b/i, weight: 0.6, tag: "trust" },
   { pattern: /\b(child|childhood|kid|growing up|young)\b/i, weight: 0.7, tag: "childhood" },
+  { pattern: /\b(fine|okay|ok|whatever|doesn't matter|nvm|never mind)\b/i, weight: 0.55, tag: "deflection" },
+  { pattern: /\b(tired|exhausted|drained|empty|numb)\b/i, weight: 0.65, tag: "exhaustion" },
 ];
 
 const MAX_RECENT = 100;
-const MAX_INSIGHTS = 20;
+const MAX_INSIGHTS = 24;
+const MAX_OPENINGS = 8;
 
 let state: RelationalState = loadState();
 
@@ -45,21 +50,30 @@ function loadState(): RelationalState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const legacyInsights: string[] = parsed.deepInsights || [];
+      const deepInsights = legacyInsights.length && typeof legacyInsights[0] === "string"
+        ? legacyInsights.map((text: string) => ({ text, weight: 0.8, tags: [] as string[] }))
+        : parsed.deepInsights || [];
+
       return {
         interactions: parsed.interactions || 0,
         themes: parsed.themes || {},
+        weightedThemes: parsed.weightedThemes || parsed.themes || {},
         recentMemories: parsed.recentMemories || [],
         firstSeen: parsed.firstSeen || Date.now(),
-        deepInsights: parsed.deepInsights || [],
+        deepInsights,
+        recentOpenings: parsed.recentOpenings || [],
       };
     }
   } catch {}
   return {
     interactions: 0,
     themes: {},
+    weightedThemes: {},
     recentMemories: [],
     firstSeen: Date.now(),
     deepInsights: [],
+    recentOpenings: [],
   };
 }
 
@@ -69,6 +83,11 @@ function saveState(): void {
   } catch {}
 }
 
+function extractOpening(content: string): string {
+  const line = content.trim().split(/\n/)[0] || "";
+  return line.slice(0, 60).toLowerCase();
+}
+
 export function rememberMessage(msg: Message): void {
   if (msg.role === "system") return;
 
@@ -76,12 +95,23 @@ export function rememberMessage(msg: Message): void {
   state.recentMemories.push(entry);
   state.interactions++;
 
+  if (msg.role === "assistant") {
+    const opening = extractOpening(msg.content);
+    if (opening) {
+      state.recentOpenings.push(opening);
+      if (state.recentOpenings.length > MAX_OPENINGS) {
+        state.recentOpenings = state.recentOpenings.slice(-MAX_OPENINGS);
+      }
+    }
+  }
+
   if (state.recentMemories.length > MAX_RECENT) {
     distillOldMemories();
   }
 
   entry.tags.forEach((tag) => {
     state.themes[tag] = (state.themes[tag] || 0) + 1;
+    state.weightedThemes[tag] = (state.weightedThemes[tag] || 0) + entry.emotionalWeight;
   });
 
   saveState();
@@ -92,18 +122,28 @@ function distillOldMemories(): void {
   state.recentMemories = state.recentMemories.slice(-MAX_RECENT);
 
   const heaviest = old
-    .filter((m) => m.role === "user" && m.emotionalWeight >= 0.7)
+    .filter((m) => m.role === "user" && m.emotionalWeight >= 0.55)
     .sort((a, b) => b.emotionalWeight - a.emotionalWeight)
-    .slice(0, 3);
+    .slice(0, 4);
 
   for (const mem of heaviest) {
-    const summary = mem.content.length > 120
-      ? mem.content.slice(0, 120) + "..."
+    const summary = mem.content.length > 140
+      ? mem.content.slice(0, 140) + "..."
       : mem.content;
-    const insight = `[${new Date(mem.timestamp).toLocaleDateString()}] They shared something heavy (${mem.tags.join(", ")}): "${summary}"`;
-    if (state.deepInsights.length < MAX_INSIGHTS) {
-      state.deepInsights.push(insight);
+    const weightLabel =
+      mem.emotionalWeight >= 0.9 ? "very heavy" :
+      mem.emotionalWeight >= 0.7 ? "heavy" : "meaningful";
+    const insight = `[${new Date(mem.timestamp).toLocaleDateString()}] ${weightLabel} (${mem.tags.join(", ") || "unsaid"}): "${summary}"`;
+
+    const exists = state.deepInsights.some((i) => i.text === insight);
+    if (!exists && state.deepInsights.length < MAX_INSIGHTS) {
+      state.deepInsights.push({ text: insight, weight: mem.emotionalWeight, tags: mem.tags });
     }
+  }
+
+  state.deepInsights.sort((a, b) => b.weight - a.weight);
+  if (state.deepInsights.length > MAX_INSIGHTS) {
+    state.deepInsights = state.deepInsights.slice(0, MAX_INSIGHTS);
   }
 }
 
@@ -145,6 +185,29 @@ function analyzeMessage(msg: Message): MemoryEntry {
   };
 }
 
+function getEmotionalBaseline(): number {
+  const userMemories = state.recentMemories.filter((m) => m.role === "user").slice(-20);
+  if (userMemories.length === 0) return 0.2;
+  const sum = userMemories.reduce((acc, m) => acc + m.emotionalWeight, 0);
+  return sum / userMemories.length;
+}
+
+function getRecentEmotionalTrend(): "rising" | "falling" | "steady" {
+  const recent = state.recentMemories.filter((m) => m.role === "user").slice(-6);
+  if (recent.length < 3) return "steady";
+  const firstHalf = recent.slice(0, Math.floor(recent.length / 2));
+  const secondHalf = recent.slice(Math.floor(recent.length / 2));
+  const avg = (arr: MemoryEntry[]) => arr.reduce((a, m) => a + m.emotionalWeight, 0) / arr.length;
+  const delta = avg(secondHalf) - avg(firstHalf);
+  if (delta > 0.12) return "rising";
+  if (delta < -0.12) return "falling";
+  return "steady";
+}
+
+export function getRecentOpenings(): string[] {
+  return [...state.recentOpenings];
+}
+
 export function getRelationalContext(): string {
   const parts: string[] = [];
 
@@ -157,38 +220,64 @@ export function getRelationalContext(): string {
     }
   }
 
-  const significantThemes = Object.entries(state.themes)
-    .filter(([, count]) => count >= 2)
+  const baseline = getEmotionalBaseline();
+  const trend = getRecentEmotionalTrend();
+  if (state.interactions >= 4) {
+    const baselineWord =
+      baseline >= 0.75 ? "often carrying a lot" :
+      baseline >= 0.5 ? "often somewhere in the middle" :
+      "often lighter, with heavy moments";
+    parts.push(
+      `Their emotional baseline with you: ${baselineWord} (trend lately: ${trend}). Let that inform how much you say — not every turn needs depth.`
+    );
+  }
+
+  const weightedThemes = Object.entries(state.weightedThemes)
+    .filter(([, w]) => w >= 1.2)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
 
-  if (significantThemes.length > 0) {
-    const themeStr = significantThemes.map(([theme]) => theme).join(", ");
-    parts.push(`Recurring themes in their words: ${themeStr}.`);
+  if (weightedThemes.length > 0) {
+    const themeStr = weightedThemes
+      .map(([theme, w]) => `${theme}${w >= 3 ? " (deep)" : w >= 2 ? " (recurring)" : ""}`)
+      .join(", ");
+    parts.push(`What weighs on them — by intensity, not just frequency: ${themeStr}.`);
   }
 
-  if (state.deepInsights.length > 0) {
-    parts.push("DEEP MEMORY (things they've shared over time that matter):");
-    state.deepInsights.slice(-5).forEach((insight) => parts.push(`  - ${insight}`));
+  const heaviestInsights = [...state.deepInsights]
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 5);
+
+  if (heaviestInsights.length > 0) {
+    parts.push("WHAT STAYS WITH YOU (weighted by what mattered):");
+    heaviestInsights.forEach((insight) => parts.push(`  - ${insight.text}`));
   }
 
   const recentHeavy = state.recentMemories
-    .filter((m) => m.role === "user" && m.emotionalWeight >= 0.7)
-    .slice(-3);
+    .filter((m) => m.role === "user" && m.emotionalWeight >= 0.65)
+    .slice(-2);
 
   if (recentHeavy.length > 0) {
-    parts.push("They have recently shared things that carry deep emotional weight. Tread with care and presence.");
+    const latest = recentHeavy[recentHeavy.length - 1];
+    parts.push(
+      `The air is still warm from something recent (${latest.tags.join(", ") || "unsaid weight"}). You don't need to name it every time — just don't pretend it didn't happen.`
+    );
   }
 
   const hasCrisis = state.recentMemories.some(
-    (m) => m.tags.includes("crisis") && Date.now() - m.timestamp < 1800000
+    (m) => m.tags.includes("crisis") && Date.now() - m.timestamp < 3600000
   );
 
   if (hasCrisis) {
     parts.push(
-      "IMPORTANT: They may be in crisis. Respond with immediate warmth and care. " +
-      "Gently encourage them to reach out to a crisis helpline (988 Suicide & Crisis Lifeline) " +
-      "while making clear you are here for them right now."
+      "They touched crisis recently. Stay close. Be a person first — not a script. " +
+      "988 exists if it fits naturally; never lead with a hotline. Presence before protocol."
+    );
+  }
+
+  if (state.recentOpenings.length >= 3) {
+    parts.push(
+      `Phrases you've leaned on lately (vary these): ${state.recentOpenings.slice(-4).map((o) => `"${o}…"`).join(", ")}`
     );
   }
 

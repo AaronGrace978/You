@@ -92,6 +92,8 @@ export default function Sanctuary() {
     if ((!text && pendingAttachments.length === 0) || isStreaming) return;
     const atts = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined;
     const firstImage = atts?.find((a) => a.type === "image")?.data;
+    // Images use message.image for display + vision; keep attachments for pdf/file only
+    const storeAttachments = atts?.filter((a) => a.type !== "image");
     setInput("");
     setPendingAttachments([]);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -105,7 +107,11 @@ export default function Sanctuary() {
       content += "\n\n" + textAtts.map((a) => `--- ${a.name} ---\n${a.data}`).join("\n\n");
     }
 
-    await sendMessage(content, firstImage, atts);
+    await sendMessage(
+      content,
+      firstImage,
+      storeAttachments && storeAttachments.length > 0 ? storeAttachments : undefined
+    );
   }, [input, pendingAttachments, isStreaming, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -322,7 +328,9 @@ function MessageBubble({ message }: { message: Message }) {
             <img src={message.image} alt="" className="max-w-[240px] rounded-xl mb-2 border border-warm-400/5" />
           )}
 
-          {message.attachments?.map((att, i) => (
+          {message.attachments
+            ?.filter((att) => att.type !== "image" || att.data !== message.image)
+            .map((att, i) => (
             <AttachmentBlock key={i} attachment={att} />
           ))}
 

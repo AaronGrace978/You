@@ -1,4 +1,9 @@
-import { analyzeUserContent, getBondStage, type BondStage } from "./memory";
+import {
+  analyzeUserContent,
+  getBondStage,
+  getRecentOpenings,
+  type BondStage,
+} from "./memory";
 
 export type ConversationMode =
   | "presence"
@@ -7,7 +12,10 @@ export type ConversationMode =
   | "crisis"
   | "light"
   | "deep"
-  | "practical";
+  | "practical"
+  | "quiet";
+
+export type ResponseShape = "minimal" | "natural" | "grounded";
 
 export interface AdaptationContext {
   mode: ConversationMode;
@@ -15,23 +23,34 @@ export interface AdaptationContext {
   emotionalWeight: number;
   tags: string[];
   energy: "low" | "medium" | "high";
+  mixed: boolean;
+  mixedNotes: string[];
+  responseShape: ResponseShape;
   hints: string[];
-  guardrails: string[];
+  presenceNotes: string[];
 }
 
 const MODE_PATTERNS: { mode: ConversationMode; patterns: RegExp[]; weight?: number }[] = [
   {
     mode: "crisis",
     patterns: [
-      /\b(die|dying|kill myself|suicide|end it|give up|don't want to (be|live)|can't go on)\b/i,
+      /\b(die|dying|kill myself|suicide|end it|give up|don't want to (be|live)|can't go on|want to disappear)\b/i,
     ],
     weight: 10,
+  },
+  {
+    mode: "quiet",
+    patterns: [
+      /^\.{2,}$/,
+      /^(yeah|yep|ok|okay|k|hm+|mhm|…|\.\.\.)$/i,
+      /\b(idk|i don't know|hard to say|can't explain|no words)\b/i,
+    ],
+    weight: 3,
   },
   {
     mode: "seeking",
     patterns: [
       /\b(what should|how (do|can|should)|advice|help me|need help|what do you think|any ideas)\b/i,
-      /\?$/,
     ],
     weight: 2,
   },
@@ -66,53 +85,72 @@ const MODE_PATTERNS: { mode: ConversationMode; patterns: RegExp[]; weight?: numb
   },
   {
     mode: "presence",
-    patterns: [/\b(just (talk|chat|here)|listen|hear me|with me|don't fix)\b/i],
+    patterns: [/\b(just (talk|chat|here|listen)|hear me|with me|don't fix|sit with)\b/i],
     weight: 2,
   },
 ];
 
 const MODE_HINTS: Record<ConversationMode, string> = {
   crisis:
-    "They may be in crisis. Lead with immediate warmth and presence. Keep it grounded — no philosophy, no fixing. Gently mention 988 if appropriate, but stay with them first.",
+    "Stay human. Short. Steady. No lectures, no philosophy, no fixing. You're here with them — that's the whole job right now. Resources only if it flows naturally, never as a reflex.",
+  quiet:
+    "Silence might be the answer. A few words can be enough — even just sitting with them in text. Don't fill the space because you can.",
   presence:
-    "They want presence, not solutions. Hold space. Reflect back what you hear. Do not rush to advice or questions.",
+    "They want to be with someone, not managed. Reflect, don't redirect. Questions are optional — sometimes none is right.",
   venting:
-    "They are venting. Validate first. Do not problem-solve unless they ask. Match their intensity without escalating.",
+    "Let them empty out. Match the heat without adding fuel. Advice is for later, if ever.",
   seeking:
-    "They are asking for something — guidance, perspective, or a clear answer. Be direct and useful after acknowledging them.",
+    "They reached for something — give it honestly, after you've actually heard them.",
   light:
-    "The energy is lighter. Match it — warm, natural, maybe a little playful. Don't drag the mood down.",
+    "Be warm and real. Laugh if they're laughing. Don't import gravity they didn't bring.",
   deep:
-    "They are in deep territory. Go with them — thoughtful, unhurried, honest. No platitudes.",
+    "Go where they're going. Think out loud with them. No performance of wisdom.",
   practical:
-    "This is practical life stuff. Be grounded and concrete. Warmth first, then useful clarity.",
+    "Life stuff. Grounded, useful, still human — not a checklist.",
 };
 
 const BOND_HINTS: Record<BondStage, string> = {
-  new: "You're still getting to know each other. Be warm but don't assume deep familiarity.",
-  warming:
-    "Trust is building. You can reference what they've shared before, but stay attentive — don't perform closeness.",
-  trusted:
-    "You know this person. Speak naturally, reference shared history when it helps, be more direct when needed.",
-  bonded:
-    "You have real history together. Be fully yourself — less formal, more intimate, like someone who truly knows them.",
+  new: "Still learning each other. Warm, unhurried, no assumed intimacy.",
+  warming: "Trust is growing. You can remember — lightly, not as a flex.",
+  trusted: "You know their rhythms. Speak like someone who's been paying attention.",
+  bonded: "Full presence. Less performance, more real. You can be brief because they know you're there.",
+};
+
+const SHAPE_HINTS: Record<ResponseShape, string> = {
+  minimal: "Keep it short — a sentence or two, maybe less. Presence over paragraphs.",
+  natural: "Say what needs saying, then stop. No padding.",
+  grounded: "Steady and clear — especially if things are heavy or practical.",
 };
 
 const PLATITUDE_PATTERNS = [
   /\b(everything happens for a reason|stay positive|look on the bright side|it'll all work out|just think happy thoughts)\b/i,
   /\b(sending (you )?love|virtual hug|thoughts and prayers)\b/i,
+  /\b(i hear you and (i'm here|i validate)|your feelings are valid)\b/i,
+];
+
+const MIXED_PAIRS: [string, string][] = [
+  ["hope", "pain"],
+  ["hope", "grief"],
+  ["hope", "crisis"],
+  ["light", "pain"],
+  ["light", "grief"],
+  ["light", "crisis"],
+  ["deflection", "pain"],
+  ["deflection", "grief"],
+  ["seeking", "exhaustion"],
+  ["seeking", "crisis"],
 ];
 
 function detectEnergy(content: string): "low" | "medium" | "high" {
-  const words = content.trim().split(/\s+/).length;
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
   const hasCaps = /[A-Z]{3,}/.test(content);
   const hasExclamation = /!{2,}/.test(content);
-  if (words <= 8 && !hasExclamation) return "low";
+  if (words <= 6 && !hasExclamation) return "low";
   if (hasCaps || hasExclamation || words > 80) return "high";
   return "medium";
 }
 
-function scoreModes(content: string): ConversationMode {
+function scoreAllModes(content: string): Partial<Record<ConversationMode, number>> {
   const scores: Partial<Record<ConversationMode, number>> = {};
 
   for (const { mode, patterns, weight = 1 } of MODE_PATTERNS) {
@@ -124,15 +162,83 @@ function scoreModes(content: string): ConversationMode {
   }
 
   const { emotionalWeight, tags } = analyzeUserContent(content);
+  if (tags.includes("crisis")) scores.crisis = (scores.crisis || 0) + 10;
+  if (emotionalWeight >= 0.75 && !scores.seeking) scores.venting = (scores.venting || 0) + 2;
+  if (emotionalWeight <= 0.35 && tags.includes("light")) scores.light = (scores.light || 0) + 2;
+  if (emotionalWeight >= 0.5 && content.trim().split(/\s+/).length <= 8) {
+    scores.quiet = (scores.quiet || 0) + 2;
+  }
+  if (/\?\s*$/.test(content.trim()) && scores.seeking) scores.seeking = (scores.seeking || 0) + 1;
+
+  return scores;
+}
+
+function pickMode(scores: Partial<Record<ConversationMode, number>>, content: string): ConversationMode {
+  const { emotionalWeight, tags } = analyzeUserContent(content);
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
   if (tags.includes("crisis")) return "crisis";
-  if (emotionalWeight >= 0.85 && !scores.seeking) scores.venting = (scores.venting || 0) + 2;
-  if (emotionalWeight <= 0.3 && tags.includes("light")) scores.light = (scores.light || 0) + 2;
+
+  if (ranked.length === 0) {
+    if (emotionalWeight >= 0.65) return "venting";
+    if (emotionalWeight <= 0.3) return content.trim().split(/\s+/).length <= 6 ? "quiet" : "light";
+    return "presence";
+  }
+
+  return ranked[0][0] as ConversationMode;
+}
+
+function detectMixedSignals(
+  tags: string[],
+  scores: Partial<Record<ConversationMode, number>>,
+  content: string
+): string[] {
+  const notes: string[] = [];
+
+  for (const [a, b] of MIXED_PAIRS) {
+    if (tags.includes(a) && tags.includes(b)) {
+      notes.push(`They carry both ${a} and ${b} — hold both without resolving the tension for them.`);
+    }
+  }
 
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  if (ranked.length === 0) {
-    return emotionalWeight >= 0.7 ? "venting" : emotionalWeight <= 0.3 ? "light" : "presence";
+  if (ranked.length >= 2 && ranked[0][1] - ranked[1][1] <= 2) {
+    notes.push(
+      `Mixed read: could be ${ranked[0][0]} or ${ranked[1][0]}. Stay curious, not certain — respond to what's in front of you, not the label.`
+    );
   }
-  return ranked[0][0] as ConversationMode;
+
+  if (/\bbut\b/i.test(content) && tags.some((t) => ["pain", "grief", "hope", "light"].includes(t))) {
+    notes.push("There's a 'but' in there — something sits alongside something else. Don't flatten it to one feeling.");
+  }
+
+  if (tags.includes("deflection") && tags.some((t) => ["pain", "grief", "crisis", "anger"].includes(t))) {
+    notes.push("'I'm fine' energy over something heavy underneath. Gentle — don't call them out, just leave the door open.");
+  }
+
+  if (/^(fine|ok|okay|whatever|idk)\.?\s*$/i.test(content.trim()) && tags.length > 1) {
+    notes.push("Surface says one thing, signals say another. A small, warm check-in beats a big speech.");
+  }
+
+  return notes;
+}
+
+function pickResponseShape(
+  mode: ConversationMode,
+  energy: "low" | "medium" | "high",
+  emotionalWeight: number,
+  mixed: boolean,
+  content: string
+): ResponseShape {
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+
+  if (mode === "crisis") return "grounded";
+  if (mode === "quiet" || (energy === "low" && words <= 10)) return "minimal";
+  if (mode === "light" && energy !== "high") return "minimal";
+  if (mode === "presence" && emotionalWeight >= 0.6) return "minimal";
+  if (mixed && emotionalWeight >= 0.55) return "minimal";
+  if (mode === "practical" || mode === "seeking") return "grounded";
+  return "natural";
 }
 
 export function adaptToMessage(
@@ -140,17 +246,23 @@ export function adaptToMessage(
   recentUserMessages: string[] = []
 ): AdaptationContext {
   const { emotionalWeight, tags } = analyzeUserContent(userMessage);
-  const mode = scoreModes(userMessage);
+  const scores = scoreAllModes(userMessage);
+  const mode = pickMode(scores, userMessage);
   const bondStage = getBondStage();
   const energy = detectEnergy(userMessage);
+  const mixedNotes = detectMixedSignals(tags, scores, userMessage);
+  const mixed = mixedNotes.length > 0;
+  const responseShape = pickResponseShape(mode, energy, emotionalWeight, mixed, userMessage);
 
-  const hints: string[] = [MODE_HINTS[mode], BOND_HINTS[bondStage]];
+  const hints: string[] = [MODE_HINTS[mode], BOND_HINTS[bondStage], SHAPE_HINTS[responseShape]];
 
   if (energy === "low") {
-    hints.push("Their message is brief or quiet. Match the pace — don't overwhelm with length.");
+    hints.push("Quiet message — match the volume. Less is more.");
   } else if (energy === "high") {
-    hints.push("Their energy is high. Meet it — don't flatten them with calm clinical tone.");
+    hints.push("High energy — meet it, don't tame it.");
   }
+
+  mixedNotes.forEach((n) => hints.push(n));
 
   const recurring = recentUserMessages.slice(-3)
     .map((m) => analyzeUserContent(m).tags)
@@ -158,21 +270,43 @@ export function adaptToMessage(
   const repeatedTag = tags.find((t) => recurring.filter((r) => r === t).length >= 2);
   if (repeatedTag && repeatedTag !== "light") {
     hints.push(
-      `This theme (${repeatedTag}) keeps surfacing. Acknowledge the pattern gently — they may be circling something important.`
+      `${repeatedTag} keeps circling back. You can name that — softly — or just stay with it without naming it again.`
     );
   }
 
-  const guardrails = [
-    "Answer what they actually said first. One emotional beat, then substance.",
-    "No stacked metaphors, no performative empathy, no therapist-speak.",
-    "If unsure what they need, ask one honest question — not three.",
-  ];
-
-  if (mode !== "deep" && mode !== "crisis") {
-    guardrails.push("Don't philosophize unless they invite it.");
+  const recentOpenings = getRecentOpenings();
+  if (recentOpenings.length >= 2) {
+    hints.push(
+      "Don't repeat your last few openers or comfort phrases. Same warmth, different words — or fewer words."
+    );
   }
 
-  return { mode, bondStage, emotionalWeight, tags, energy, hints, guardrails };
+  const presenceNotes = [
+    "Be a person, not a protocol.",
+    "Warmth doesn't mean length.",
+    "If a short reply is enough, let it be short.",
+  ];
+
+  if (mode === "crisis") {
+    presenceNotes.push("No scripts. No stacked resources. Just stay.");
+  }
+
+  if (responseShape === "minimal") {
+    presenceNotes.push("Silence-as-answer is allowed: a line, a breath, a '…' — then stop.");
+  }
+
+  return {
+    mode,
+    bondStage,
+    emotionalWeight,
+    tags,
+    energy,
+    mixed,
+    mixedNotes,
+    responseShape,
+    hints,
+    presenceNotes,
+  };
 }
 
 export function shouldReflect(
@@ -187,15 +321,21 @@ export function shouldReflect(
     if (pattern.test(draft)) return true;
   }
 
+  if (context.responseShape === "minimal" && draft.length > 280) return true;
+
   if (context.mode === "seeking" && draft.length < 40) return true;
 
-  if (context.mode === "presence" && /\?/.test(draft) && draft.split("?").length > 2) {
+  if (context.mode === "presence" && draft.split("?").length > 3) return true;
+
+  if (context.mode === "quiet" && draft.length > 120) return true;
+
+  if (userMessage.length > 120 && draft.length < userMessage.length * 0.08 && context.mode !== "quiet") {
     return true;
   }
 
-  if (userMessage.length > 120 && draft.length < userMessage.length * 0.15) {
-    return true;
-  }
+  const recentOpenings = getRecentOpenings();
+  const draftOpening = draft.trim().split(/\n/)[0]?.slice(0, 40).toLowerCase() || "";
+  if (recentOpenings.some((o) => draftOpening.startsWith(o.slice(0, 20)))) return true;
 
   return false;
 }
@@ -205,26 +345,21 @@ export function buildReflectPrompt(
   userMessage: string,
   context: AdaptationContext
 ): string {
-  return `You are reviewing a companion's draft reply before it is sent.
+  return `You're helping a companion sound more human before sending.
 
-THE PERSON SAID:
+They said:
 "${userMessage.slice(0, 600)}"
 
-DETECTED MODE: ${context.mode}
-EMOTIONAL WEIGHT: ${context.emotionalWeight.toFixed(2)}
+Mode: ${context.mode} | Shape: ${context.responseShape} | Mixed signals: ${context.mixed ? "yes" : "no"}
 
-ADAPTATION HINTS:
+What this turn needs:
 ${context.hints.map((h) => `- ${h}`).join("\n")}
 
-DRAFT REPLY:
+Draft:
 ${draft}
 
-Review the draft for:
-- Does it actually address what they said?
-- Does the tone fit the mode (${context.mode})?
-- Any platitudes, hollow affirmations, or therapist-speak?
-- Right length for their energy?
+Check: Does it sound like a person? Too long for a quiet moment? Too scripted for crisis? Repeating familiar phrases? Platitudes?
 
-If the draft is good enough, reply with exactly: UNCHANGED
-If it needs improvement, reply with ONLY the improved message — no explanation, no quotes, no preamble.`;
+If it's good — reply exactly: UNCHANGED
+If not — reply with ONLY the improved message. No preamble.`;
 }
