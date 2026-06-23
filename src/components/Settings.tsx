@@ -14,11 +14,14 @@ import {
   ANTHROPIC_MODELS,
   VOICE_PRESETS,
 } from "../core/ai-config";
+import { enterAndroidImmersive, exitAndroidImmersive, isAndroid } from "../core/immersive";
 
 export default function Settings() {
   const setView = useStore((s) => s.setView);
   const theme = useStore((s) => s.theme);
   const toggleTheme = useStore((s) => s.toggleTheme);
+  const immersiveNav = useStore((s) => s.immersiveNav);
+  const setImmersiveNav = useStore((s) => s.setImmersiveNav);
   const provider = useStore((s) => s.provider);
   const model = useStore((s) => s.model);
   const apiKey = useStore((s) => s.apiKey);
@@ -716,6 +719,35 @@ export default function Settings() {
                   ))}
                 </div>
               </Field>
+              {isAndroid() && (
+                <Field label="Hide system nav buttons">
+                  <div className="flex gap-2">
+                    {([
+                      { id: true, label: "On", sub: "Immersive — hides ||| □ <" },
+                      { id: false, label: "Off", sub: "Show Android buttons" },
+                    ] as const).map((opt) => (
+                      <button
+                        key={String(opt.id)}
+                        onClick={() => {
+                          setImmersiveNav(opt.id);
+                          if (opt.id) void enterAndroidImmersive();
+                          else void exitAndroidImmersive();
+                        }}
+                        className={`flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer settings-toggle ${
+                          immersiveNav === opt.id ? "settings-toggle-on" : ""
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        <span className="text-[10px] opacity-70">{opt.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="font-body text-[11px] leading-relaxed mt-2" style={{ color: "rgb(var(--c-muted))" }}>
+                    Android&apos;s back / home / recents bar is OS-level — this uses fullscreen to tuck it away.
+                    Swipe up from the bottom edge to bring it back briefly. Voice mode always tries immersive.
+                  </p>
+                </Field>
+              )}
             </div>
           </Section>
 

@@ -8,16 +8,43 @@ import VoiceMode from "./components/VoiceMode";
 import InstallHint from "./components/InstallHint";
 import { applyThemeChrome, watchThemeChrome } from "./core/theme-chrome";
 import { initMemoryStore } from "./core/memory";
+import { enterAndroidImmersive, exitAndroidImmersive } from "./core/immersive";
 
 export default function App() {
   const view = useStore((s) => s.view);
-  const voiceMode = useStore((s) => s.voiceMode);
   const theme = useStore((s) => s.theme);
+  const immersiveNav = useStore((s) => s.immersiveNav);
+  const voiceMode = useStore((s) => s.voiceMode);
 
   useEffect(() => {
     applyThemeChrome(theme);
     return watchThemeChrome(theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!immersiveNav) {
+      void exitAndroidImmersive();
+      return;
+    }
+
+    const tryImmersive = () => {
+      if (!useStore.getState().voiceMode) void enterAndroidImmersive();
+    };
+
+    tryImmersive();
+    const onPointer = () => tryImmersive();
+    document.addEventListener("pointerdown", onPointer, { once: true });
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tryImmersive();
+    };
+    window.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [immersiveNav, voiceMode]);
 
   useEffect(() => {
     void initMemoryStore();

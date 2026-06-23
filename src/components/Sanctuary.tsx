@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, lazy, Suspense, useCallback } from "react";
 import { useStore, type Message, type Attachment } from "../store";
 import { unlockAudioForPlayback } from "../core/voice";
+import { enterAndroidImmersive } from "../core/immersive";
 import Markdown from "react-markdown";
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
@@ -317,6 +318,7 @@ export default function Sanctuary() {
             <button
               onClick={() => {
                 unlockAudioForPlayback();
+                void enterAndroidImmersive();
                 setVoiceMode(true);
               }}
               className="icon-btn"

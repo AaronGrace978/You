@@ -32,6 +32,10 @@ interface AppState {
   theme: Theme;
   toggleTheme: () => void;
 
+  /** Hide Android system nav buttons (||| □ <) via immersive fullscreen. */
+  immersiveNav: boolean;
+  setImmersiveNav: (v: boolean) => void;
+
   messages: Message[];
   isStreaming: boolean;
   streamingContent: string;
@@ -109,6 +113,9 @@ export const useStore = create<AppState>()(
           applyThemeChrome(next);
           return { theme: next };
         }),
+
+      immersiveNav: false,
+      setImmersiveNav: (immersiveNav) => set({ immersiveNav }),
 
       messages: [],
       isStreaming: false,
@@ -243,6 +250,7 @@ export const useStore = create<AppState>()(
       name: "you-app-state",
       partialize: (state) => ({
         theme: state.theme,
+        immersiveNav: state.immersiveNav,
         messages: state.messages,
         provider: state.provider,
         model: state.model,

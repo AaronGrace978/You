@@ -44,6 +44,14 @@
     color-scheme: dark light;
   }
 
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  html[data-theme="light"] {
+    color-scheme: light;
+  }
+
   body {
     font-family: "Karla", sans-serif;
     -webkit-font-smoothing: antialiased;

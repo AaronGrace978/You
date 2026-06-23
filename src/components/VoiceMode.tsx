@@ -22,11 +22,13 @@ import {
 import { generateResponse } from "../core/conversation";
 import { rememberMessage } from "../core/memory";
 import { acquireWakeLock, releaseWakeLock, watchWakeLockRenew } from "../core/wake-lock";
+import { enterAndroidImmersive, exitAndroidImmersive } from "../core/immersive";
 
 type VoiceState = "ready" | "listening" | "processing" | "speaking" | "error" | "paused";
 
 export default function VoiceMode() {
   const setVoiceMode = useStore((s) => s.setVoiceMode);
+  const immersiveNav = useStore((s) => s.immersiveNav);
   const voicePttMode = useStore((s) => s.voicePttMode);
   const voiceSeeMode = useStore((s) => s.voiceSeeMode);
   const setVoiceSeeMode = useStore((s) => s.setVoiceSeeMode);
@@ -137,7 +139,8 @@ export default function VoiceMode() {
     stopAll();
     stopCamera();
     setVoiceMode(false);
-  }, [setVoiceMode, stopCamera]);
+    if (!immersiveNav) void exitAndroidImmersive();
+  }, [setVoiceMode, stopCamera, immersiveNav]);
 
   const interruptSpeaking = useCallback(() => {
     if (state !== "speaking") return;
