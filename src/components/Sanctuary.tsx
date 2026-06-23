@@ -342,10 +342,22 @@ export default function Sanctuary() {
               </svg>
             </button>
           </div>
-          <p className="text-center text-secondary text-xs mt-3 font-body">
-            {dinoBuddyMode
-              ? "Just you and Dino. Stays on your device until you send."
-              : "Everything shared here stays between you and this space."}
+          <p className="text-center text-secondary text-xs mt-3 font-body leading-relaxed">
+            {dinoBuddyMode ? (
+              <>
+                Just you and Dino. Stays on your device until you send.
+                <br />
+                <span className="text-muted">
+                  Sometimes a dino gets too excited — tiny arms flailing, a word might trip. It happens. 🦖
+                </span>
+              </>
+            ) : (
+              <>
+                Everything shared here stays between you and this space.
+                <br />
+                <span className="text-muted">Responses can miss the mark — trust your own judgment.</span>
+              </>
+            )}
           </p>
         </div>
       </div>
