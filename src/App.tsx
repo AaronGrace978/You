@@ -4,6 +4,7 @@ import Landing from "./components/Landing";
 import Gateway from "./components/Gateway";
 import Sanctuary from "./components/Sanctuary";
 import Settings from "./components/Settings";
+import UserGuide from "./components/UserGuide";
 import VoiceMode from "./components/VoiceMode";
 import InstallHint from "./components/InstallHint";
 import { applyThemeChrome, watchThemeChrome } from "./core/theme-chrome";
@@ -73,6 +74,7 @@ export default function App() {
         {view === "gateway" && <Gateway />}
         {view === "sanctuary" && <Sanctuary />}
         {view === "settings" && <Settings />}
+        {view === "guide" && <UserGuide />}
       </div>
 
       {voiceMode && <VoiceMode />}

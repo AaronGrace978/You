@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>You — User Guide</title>
+    <meta name="description" content="How to use You — a relational AI presence that sees you." />
+    <meta name="theme-color" content="#09090f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,500;0,600;1,400&family=Karla:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --deep: #09090f;
+        --surface: #121218;
+        --elevated: #1a1a22;
+        --text: #fcfaf7;
+        --muted: #b2aaa0;
+        --accent: #dab284;
+        --max: 42rem;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --deep: #f8f5f0;
+          --surface: #eeeae3;
+          --elevated: #e4e0d8;
+          --text: #1c1814;
+          --muted: #48423a;
+          --accent: #764820;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html {
+        color-scheme: dark light;
+        background: var(--deep);
+      }
+
+      body {
+        font-family: "Karla", system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.65;
+        color: var(--text);
+        background: var(--deep);
+        -webkit-font-smoothing: antialiased;
+        padding: max(1.25rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right))
+          max(2rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
+      }
+
+      .wrap {
+        max-width: var(--max);
+        margin: 0 auto;
+      }
+
+      .site-header {
+        text-align: center;
+        padding: 1.5rem 0 2rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
+        margin-bottom: 2rem;
+      }
+
+      .site-header h1 {
+        font-family: "Cormorant", Georgia, serif;
+        font-size: 2.25rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.35rem;
+      }
+
+      .site-header p {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        text-decoration: none;
+        margin-bottom: 1.25rem;
+      }
+
+      .back-link:hover {
+        color: var(--accent);
+      }
+
+      html.embedded .back-link,
+      html.embedded .open-app {
+        display: none;
+      }
+
+      section {
+        margin-bottom: 2.25rem;
+      }
+
+      h2 {
+        font-family: "Cormorant", Georgia, serif;
+        font-size: 1.35rem;
+        font-weight: 500;
+        color: var(--accent);
+        margin-bottom: 0.75rem;
+      }
+
+      h3 {
+        font-size: 0.8rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 1.25rem 0 0.5rem;
+        font-weight: 600;
+      }
+
+      p {
+        margin-bottom: 0.75rem;
+        color: color-mix(in srgb, var(--text) 92%, transparent);
+      }
+
+      ul,
+      ol {
+        margin: 0.5rem 0 1rem 1.25rem;
+      }
+
+      li {
+        margin-bottom: 0.45rem;
+        color: color-mix(in srgb, var(--text) 88%, transparent);
+      }
+
+      li strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .card {
+        background: color-mix(in srgb, var(--surface) 88%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
+        border-radius: 1rem;
+        padding: 1rem 1.15rem;
+        margin: 1rem 0;
+      }
+
+      .card p:last-child {
+        margin-bottom: 0;
+      }
+
+      .tip {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      kbd,
+      .pill {
+        display: inline-block;
+        font-size: 0.72rem;
+        padding: 0.15rem 0.45rem;
+        border-radius: 0.35rem;
+        background: var(--elevated);
+        border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+        color: var(--text);
+        font-family: inherit;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      footer {
+        margin-top: 2.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-align: center;
+      }
+    </style>
+    <script>
+      if (new URLSearchParams(location.search).get("app") === "1") {
+        document.documentElement.classList.add("embedded");
+      }
+    </script>
+  </head>
+  <body>
+    <div class="wrap">
+      <a class="back-link open-app" href="./">← Back to You</a>
+
+      <header class="site-header">
+        <h1>User Guide</h1>
+        <p>How to use You — speak freely, stay private, go at your pace.</p>
+      </header>
+
+      <section id="welcome">
+        <h2>Welcome</h2>
+        <p>
+          <strong>You</strong> is a relational AI companion — not a chatbot chasing answers, but a
+          presence that listens, remembers what matters, and meets you where you are.
+        </p>
+        <div class="card">
+          <p class="tip">
+            This is not therapy or crisis care. If you are in immediate danger, call or text
+            <strong>988</strong> (US) or find a local helpline at
+            <a href="https://findahelpline.com" target="_blank" rel="noreferrer">findahelpline.com</a>.
+          </p>
+        </div>
+      </section>
+
+      <section id="getting-started">
+        <h2>Getting started</h2>
+        <ol>
+          <li>Open the app and pass through the <strong>gateway</strong> when you are ready to enter.</li>
+          <li>You land in the <strong>sanctuary</strong> — your private conversation space.</li>
+          <li>Tap the <strong>gear icon</strong> (top right) to open <strong>Settings</strong> and choose an AI provider.</li>
+          <li>Type in the box at the bottom, or tap the <strong>microphone</strong> for voice mode.</li>
+        </ol>
+      </section>
+
+      <section id="chat">
+        <h2>Chat</h2>
+        <h3>Send a message</h3>
+        <ul>
+          <li>Type in the input bar and tap the <strong>up arrow</strong> to send.</li>
+          <li>On desktop, <kbd>Enter</kbd> sends; <kbd>Shift + Enter</kbd> adds a new line.</li>
+        </ul>
+        <h3>Attachments</h3>
+        <ul>
+          <li><strong>Paperclip</strong> — attach images, PDFs, or files to talk through together.</li>
+          <li><strong>Camera</strong> — capture a photo and send it with your message.</li>
+        </ul>
+        <h3>While the AI responds</h3>
+        <p>
+          Replies stream in as they are generated. Long-press or select text to copy. Your
+          conversation stays on <strong>this device</strong> unless you clear it in Settings.
+        </p>
+      </section>
+
+      <section id="voice">
+        <h2>Voice mode</h2>
+        <p>Tap the <strong>microphone</strong> in the chat bar to enter an immersive voice space.</p>
+        <ul>
+          <li><strong>Push to talk</strong> (recommended on phones) — hold the mic button while speaking, release to send.</li>
+          <li><strong>See mode</strong> — optionally attach a live camera frame with each message (Settings → Voice).</li>
+          <li>Tap the <strong>orb</strong> while the AI is speaking to interrupt.</li>
+          <li>Tap the red <strong>end</strong> button to return to chat.</li>
+        </ul>
+        <div class="card tip">
+          Voice input works best in <strong>Safari</strong> or <strong>Chrome</strong> on your phone.
+          For natural speech output, add an ElevenLabs key in Settings (optional).
+        </div>
+      </section>
+
+      <section id="settings">
+        <h2>Settings</h2>
+        <h3>Profile</h3>
+        <ul>
+          <li><strong>Your name</strong> — how You addresses you.</li>
+          <li><strong>Dino Buddy</strong> — a warm, calm companion persona with an adjustable energy slider.</li>
+          <li><strong>Adaptive loops</strong> — lets the AI read the room and reflect on heavier turns.</li>
+        </ul>
+        <h3>AI provider</h3>
+        <ul>
+          <li><strong>Ollama (local)</strong> — runs on your computer; nothing leaves your machine.</li>
+          <li><strong>Ollama Cloud / OpenAI / Anthropic</strong> — needs an API key; messages go to that provider.</li>
+        </ul>
+        <h3>Voice</h3>
+        <p>Choose push-to-talk, see mode, browser TTS vs ElevenLabs, and test your setup.</p>
+        <h3>Appearance</h3>
+        <ul>
+          <li><strong>Dark / Light</strong> theme for the whole app.</li>
+          <li><strong>Immersive fullscreen</strong> — on some phones, hides bottom system navigation for a cleaner view.</li>
+        </ul>
+        <h3>Memory &amp; data</h3>
+        <p>
+          Pin memories, view recall stats, or clear everything. Semantic memory helps You bring up
+          relevant past context — still stored locally on your device.
+        </p>
+      </section>
+
+      <section id="privacy">
+        <h2>Privacy</h2>
+        <ul>
+          <li>Chats and memory are stored <strong>locally in your browser</strong> (IndexedDB / local storage).</li>
+          <li>When you send a message, only the text (and any attachments you include) goes to the AI provider you selected.</li>
+          <li>GitHub Pages only hosts the static app — it never sees your conversations.</li>
+        </ul>
+      </section>
+
+      <section id="install">
+        <h2>Install on your phone</h2>
+        <p>For the best full-screen experience, add You to your home screen:</p>
+        <ul>
+          <li><strong>iPhone (Safari):</strong> Share → Add to Home Screen</li>
+          <li><strong>Android (Chrome):</strong> Menu → Install app or Add to Home screen</li>
+        </ul>
+        <p class="tip">
+          Installed apps open edge-to-edge with no browser bar. Layout respects your phone&apos;s notch
+          and home indicator automatically.
+        </p>
+      </section>
+
+      <section id="tips">
+        <h2>Tips</h2>
+        <ul>
+          <li>You do not need perfect words — fragments and honesty are welcome.</li>
+          <li>Switch providers in Settings if one model feels too cold or too slow.</li>
+          <li>Use voice mode when typing feels like too much.</li>
+          <li>Clear memory in Settings anytime you want a fresh start.</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p>You — a presence that sees you.</p>
+      </footer>
+    </div>
+  </body>
+</html>

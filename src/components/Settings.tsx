@@ -14,7 +14,8 @@ import {
   ANTHROPIC_MODELS,
   VOICE_PRESETS,
 } from "../core/ai-config";
-import { enterAndroidImmersive, exitAndroidImmersive, isAndroid } from "../core/immersive";
+import { enterAndroidImmersive, exitAndroidImmersive } from "../core/immersive";
+import { isAndroid } from "../core/ai-config";
 
 export default function Settings() {
   const setView = useStore((s) => s.setView);
@@ -720,11 +721,11 @@ export default function Settings() {
                 </div>
               </Field>
               {isAndroid() && (
-                <Field label="Hide system nav buttons">
+                <Field label="Immersive fullscreen">
                   <div className="flex gap-2">
                     {([
-                      { id: true, label: "On", sub: "Immersive — hides ||| □ <" },
-                      { id: false, label: "Off", sub: "Show Android buttons" },
+                      { id: true, label: "On", sub: "Hide system navigation" },
+                      { id: false, label: "Off", sub: "Show system navigation" },
                     ] as const).map((opt) => (
                       <button
                         key={String(opt.id)}
@@ -743,11 +744,31 @@ export default function Settings() {
                     ))}
                   </div>
                   <p className="font-body text-[11px] leading-relaxed mt-2" style={{ color: "rgb(var(--c-muted))" }}>
-                    Android&apos;s back / home / recents bar is OS-level — this uses fullscreen to tuck it away.
-                    Swipe up from the bottom edge to bring it back briefly. Voice mode always tries immersive.
+                    Tucks away bottom system buttons for a cleaner edge-to-edge view. Swipe up from the
+                    bottom edge to peek them again. Voice mode always enters immersive.
                   </p>
                 </Field>
               )}
+            </div>
+          </Section>
+
+          <Section title="User Guide" icon={<BookIcon />}>
+            <div className="settings-card space-y-3">
+              <p className="font-body text-xs leading-relaxed" style={{ color: "rgb(var(--c-muted))" }}>
+                How to chat, use voice, pick a provider, install on your phone, and understand privacy.
+              </p>
+              <button
+                type="button"
+                onClick={() => setView("guide")}
+                className="w-full flex items-center justify-between rounded-xl px-4 py-3 transition-all cursor-pointer settings-toggle-on"
+              >
+                <span className="font-body text-xs" style={{ color: "rgb(var(--c-text))" }}>
+                  Open user guide
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "rgb(var(--c-accent))" }}>
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
             </div>
           </Section>
 
@@ -911,6 +932,14 @@ function PaletteIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <path d="M12 2a10 10 0 0 1 0 20" fill="currentColor" opacity="0.15" />
+    </svg>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 1 0-5H20" />
     </svg>
   );
 }

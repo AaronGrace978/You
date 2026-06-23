@@ -299,7 +299,7 @@ export default function VoiceMode() {
 
     if (!isSpeechRecognitionSupported()) {
       setState("error");
-      setHint("Voice input needs Chrome (Android) or Safari (iPhone).");
+      setHint("Voice input isn't supported here — try Safari or Chrome on your phone.");
       return;
     }
 
@@ -328,7 +328,7 @@ export default function VoiceMode() {
   const startPtt = useCallback(() => {
     if (pttActiveRef.current || busyRef.current || pausedRef.current) return;
     if (!isSpeechRecognitionSupported()) {
-      setHint("Voice input needs Chrome (Android) or Safari (iPhone).");
+      setHint("Voice input isn't supported here — try Safari or Chrome on your phone.");
       return;
     }
     unlockAudioForPlayback();

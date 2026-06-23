@@ -1,8 +1,6 @@
-/** Best-effort hide of Android's bottom nav (||| □ <) via the Fullscreen API. */
+/** Best-effort hide of on-screen system navigation via the Fullscreen API (mainly Android). */
 
-export function isAndroid(): boolean {
-  return /Android/i.test(navigator.userAgent);
-}
+import { isAndroid } from "./ai-config";
 
 export function isInstalledPwa(): boolean {
   return window.matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches;

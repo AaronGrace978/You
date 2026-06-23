@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { isHostedApp, isMobileDevice, isStandaloneApp } from "../core/ai-config";
+import { isHostedApp, isMobileDevice, isStandaloneApp, isIos } from "../core/ai-config";
 
 const DISMISS_KEY = "you-install-hint-dismissed";
 
@@ -31,10 +31,21 @@ export default function InstallHint() {
         }}
       >
         <div className="flex-1 min-w-0">
-          <p className="font-body text-xs font-medium text-warm-50">Fullscreen on your phone</p>
+          <p className="font-body text-xs font-medium text-warm-50">Install on your phone</p>
           <p className="font-body text-[11px] leading-relaxed text-secondary mt-1">
-            Tap your browser menu → <strong className="text-warm-50">Add to Home screen</strong> or{" "}
-            <strong className="text-warm-50">Install app</strong>. Opens edge-to-edge with no browser bar.
+            {isIos() ? (
+              <>
+                Tap <strong className="text-warm-50">Share</strong> →{" "}
+                <strong className="text-warm-50">Add to Home Screen</strong>. Opens full-screen with no
+                browser bar.
+              </>
+            ) : (
+              <>
+                Tap your browser menu → <strong className="text-warm-50">Install app</strong> or{" "}
+                <strong className="text-warm-50">Add to Home screen</strong>. Opens edge-to-edge with no
+                browser bar.
+              </>
+            )}
           </p>
         </div>
         <button

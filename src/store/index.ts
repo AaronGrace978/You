@@ -22,7 +22,7 @@ export interface Message {
 }
 
 export type Provider = "ollama" | "ollama-cloud" | "openai" | "anthropic";
-export type View = "landing" | "gateway" | "sanctuary" | "settings";
+export type View = "landing" | "gateway" | "sanctuary" | "settings" | "guide";
 export type Theme = "dark" | "light";
 
 interface AppState {
@@ -32,7 +32,7 @@ interface AppState {
   theme: Theme;
   toggleTheme: () => void;
 
-  /** Hide Android system nav buttons (||| □ <) via immersive fullscreen. */
+  /** Hide on-screen system navigation via immersive fullscreen where supported. */
   immersiveNav: boolean;
   setImmersiveNav: (v: boolean) => void;
 

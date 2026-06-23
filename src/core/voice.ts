@@ -88,7 +88,7 @@ export function startListening(
   options?: ListeningOptions
 ): void {
   if (!SpeechRecognitionAPI) {
-    callbacks.onError("Speech recognition not supported — try Chrome");
+    callbacks.onError("Speech recognition isn't supported in this browser — try Safari or Chrome on your phone.");
     return;
   }
 
