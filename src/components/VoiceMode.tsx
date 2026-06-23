@@ -405,16 +405,16 @@ export default function VoiceMode() {
       )}
 
       <div
-        className="absolute left-0 right-0 flex items-center justify-between px-5"
+        className="absolute left-0 right-0 flex items-center justify-center px-5"
         style={{ top: "max(1.25rem, env(safe-area-inset-top))" }}
       >
-        <span className="vm-wordmark text-lg select-none">
+        <span className="vm-wordmark text-lg select-none pointer-events-none">
           {dinoBuddyMode ? "Dino 🦖" : "You"}
         </span>
         <button
           onClick={handleClose}
           aria-label="Close voice mode"
-          className="w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer"
+          className="absolute right-4 w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer"
           style={{ color: "rgb(var(--c-text) / 0.45)" }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

@@ -123,6 +123,28 @@ export default function Settings() {
   const proxyActive = effectiveProxyUrl(cloudSettings).length > 0;
   const dinoTier = getDinoEnergyTier(dinoEnergy);
 
+  const PAGES_HINT_KEY = "you-dismissed-pages-hint";
+  const [pagesHintDismissed, setPagesHintDismissed] = useState(
+    () => localStorage.getItem(PAGES_HINT_KEY) === "1"
+  );
+  const hasProviderKey = apiKey.trim().length > 0 || ollamaCloudApiKey.trim().length > 0;
+  const showPagesHint =
+    isHostedApp() && !pagesHintDismissed && !hasProviderKey && provider !== "ollama";
+
+  const dismissPagesHint = () => {
+    localStorage.setItem(PAGES_HINT_KEY, "1");
+    setPagesHintDismissed(true);
+  };
+
+  const providerPrivacyLabel =
+    provider === "ollama"
+      ? "Ollama local — stays on your device"
+      : provider === "ollama-cloud"
+        ? "Ollama Cloud"
+        : provider === "openai"
+          ? "OpenAI"
+          : "Anthropic";
+
   return (
     <div className="h-full w-full flex flex-col animate-fade-in">
       <header className="safe-top safe-x flex items-center justify-between px-6 py-4 themed-border" style={{ borderBottomWidth: 1, borderBottomStyle: "solid" }}>
@@ -202,21 +224,13 @@ export default function Settings() {
                       key={String(opt.id)}
                       type="button"
                       onClick={() => setDinoBuddyMode(opt.id)}
-                      className="flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
-                      style={{
-                        background:
-                          dinoBuddyMode === opt.id
-                            ? "rgb(var(--c-accent) / 0.15)"
-                            : "rgb(var(--c-elevated) / 0.5)",
-                        color:
-                          dinoBuddyMode === opt.id
-                            ? "rgb(var(--c-accent))"
-                            : "rgb(var(--c-muted))",
-                        border:
-                          dinoBuddyMode === opt.id
-                            ? "1px solid rgb(var(--c-accent) / 0.3)"
-                            : "1px solid rgb(var(--c-border) / 0.3)",
-                      }}
+                      className={`flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer settings-toggle ${
+                        dinoBuddyMode === opt.id
+                          ? opt.id
+                            ? "settings-toggle-dino"
+                            : "settings-toggle-on"
+                          : ""
+                      }`}
                     >
                       <span>{opt.label}</span>
                       <span className="text-[10px] opacity-70">{opt.sub}</span>
@@ -233,7 +247,7 @@ export default function Settings() {
                     step={5}
                     value={dinoEnergy}
                     onChange={(e) => setDinoEnergy(Number(e.target.value))}
-                    className="w-full accent-[rgb(var(--c-accent))]"
+                    className={`w-full ${dinoBuddyMode ? "accent-dino" : "accent-theme"}`}
                   />
                   <div className="flex justify-between font-body text-[10px] mt-1" style={{ color: "rgb(var(--c-muted))" }}>
                     <span>Calm</span>
@@ -249,22 +263,43 @@ export default function Settings() {
                   </p>
                 </Field>
               )}
+              <p
+                className="font-body text-[10px] leading-relaxed rounded-lg px-3 py-2"
+                style={{
+                  color: "rgb(var(--c-muted))",
+                  background: "rgb(var(--c-elevated) / 0.35)",
+                  border: "1px solid rgb(var(--c-border) / 0.2)",
+                }}
+              >
+                <span style={{ color: "rgb(var(--c-text) / 0.85)" }}>Privacy — </span>
+                Chats & memory stay on this device. Messages send to{" "}
+                <span style={{ color: "rgb(var(--c-text) / 0.85)" }}>{providerPrivacyLabel}</span> when you talk.
+              </p>
             </div>
           </Section>
 
           <Section title="AI Provider" icon={<CpuIcon />}>
             <div className="settings-card space-y-5">
-              {isHostedApp() && (
+              {showPagesHint && (
                 <div
-                  className="rounded-xl px-4 py-3 font-body text-xs leading-relaxed"
+                  className="rounded-xl px-4 py-3 font-body text-xs leading-relaxed relative"
                   style={{
                     background: "rgb(var(--c-accent) / 0.08)",
                     border: "1px solid rgb(var(--c-accent) / 0.2)",
                     color: "rgb(var(--c-muted))",
                   }}
                 >
+                  <button
+                    type="button"
+                    onClick={dismissPagesHint}
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full font-body text-[10px] cursor-pointer opacity-50 hover:opacity-100"
+                    style={{ color: "rgb(var(--c-muted))" }}
+                    aria-label="Dismiss"
+                  >
+                    ✕
+                  </button>
                   <span style={{ color: "rgb(var(--c-accent))" }}>GitHub Pages — </span>
-                  Ollama Cloud uses the Cloudflare proxy automatically. Paste your OpenAI or Anthropic key below for those providers.
+                  Ollama Cloud uses the built-in proxy. Paste an OpenAI or Anthropic key below if you use those.
                 </div>
               )}
 

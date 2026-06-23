@@ -171,15 +171,15 @@ export default function Sanctuary() {
           />
         </Suspense>
       )}
-      <header className="safe-top safe-x flex items-center justify-between px-6 py-4 border-b border-warm-400/5">
-        <h2 className="font-display text-lg text-warm-50 tracking-wide">
+      <header className="safe-top safe-x relative flex items-center justify-center px-6 py-4 border-b border-warm-400/5 min-h-[3.25rem]">
+        <h2 className="font-display text-lg text-warm-50 tracking-wide pointer-events-none select-none">
           {dinoBuddyMode ? (
             <span>Dino <span className="opacity-90">🦖</span></span>
           ) : (
             "You"
           )}
         </h2>
-        <div className="flex items-center gap-1">
+        <div className="absolute right-4 safe-x flex items-center gap-1">
           {messages.length > 0 && (
             <>
               <button onClick={() => exportConversation(messages, userName, dinoBuddyMode)} className="icon-btn" title="Export journal">
@@ -341,7 +341,9 @@ export default function Sanctuary() {
             </button>
           </div>
           <p className="text-center text-secondary text-xs mt-3 font-body">
-            Everything shared here stays between you and this space.
+            {dinoBuddyMode
+              ? "Just you and Dino. Stays on your device until you send."
+              : "Everything shared here stays between you and this space."}
           </p>
         </div>
       </div>

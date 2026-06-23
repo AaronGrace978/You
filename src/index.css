@@ -857,6 +857,33 @@ select.input-field {
   cursor: default;
 }
 
+/* Settings toggles */
+.settings-toggle {
+  background: rgb(var(--c-elevated) / 0.5);
+  color: rgb(var(--c-muted));
+  border: 1px solid rgb(var(--c-border) / 0.3);
+}
+.settings-toggle-on {
+  background: rgb(var(--c-accent) / 0.15);
+  color: rgb(var(--c-accent));
+  border: 1px solid rgb(var(--c-accent) / 0.3);
+}
+.settings-toggle-dino {
+  background: rgb(255 140 60 / 0.14);
+  color: rgb(180 95 45);
+  border: 1px solid rgb(255 140 60 / 0.35);
+}
+[data-theme="light"] .settings-toggle-dino {
+  color: rgb(130 70 28);
+}
+
+.accent-theme {
+  accent-color: rgb(var(--c-accent));
+}
+.accent-dino {
+  accent-color: rgb(220 120 50);
+}
+
 .vm-orb[role="button"] {
   cursor: pointer;
 }
