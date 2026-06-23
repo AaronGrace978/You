@@ -10,6 +10,18 @@ const CameraCapture = lazy(() => import("./CameraCapture"));
 const ACCEPTED_TYPES =
   "image/*,.pdf,.txt,.md,.csv,.json,.xml,.html,.log,.py,.js,.ts,.jsx,.tsx,.c,.cpp,.java,.rs,.go";
 
+const SUGGESTIONS_DEFAULT = [
+  "I need to talk through something",
+  "Help me unpack a feeling",
+  "I'm not sure where to start",
+];
+
+const SUGGESTIONS_DINO = [
+  "What's on your mind?",
+  "Tell me about your day",
+  "I just need to vent",
+];
+
 function classifyFile(file: File): Attachment["type"] {
   if (file.type.startsWith("image/")) return "image";
   if (file.type === "application/pdf") return "pdf";
@@ -172,8 +184,8 @@ export default function Sanctuary() {
           />
         </Suspense>
       )}
-      <header className="safe-top safe-x relative flex items-center justify-center px-6 py-4 border-b border-warm-400/5 min-h-[3.25rem]">
-        <h2 className="font-display text-lg text-warm-50 tracking-wide pointer-events-none select-none">
+      <header className="chat-header safe-top safe-x relative flex items-center justify-center px-6 py-3.5 min-h-[3.25rem] shrink-0">
+        <h2 className="font-display text-[1.0625rem] text-warm-50 tracking-wide pointer-events-none select-none">
           {dinoBuddyMode ? (
             <span>Dino <span className="opacity-90">🦖</span></span>
           ) : (
@@ -206,24 +218,41 @@ export default function Sanctuary() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 md:px-0">
-        <div className="max-w-2xl mx-auto py-8 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 chat-scroll-fade">
+        <div className="max-w-3xl mx-auto py-6 md:py-10 space-y-8 md:space-y-10">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full min-h-[40vh] gap-4">
-              <p className="font-display text-3xl text-warm-50">
-                {dinoBuddyMode
-                  ? userName
-                    ? `Hey ${userName}! 🦖`
-                    : "Hey! 🦖"
-                  : userName
-                    ? `Welcome back, ${userName}`
-                    : "Hello"}
-              </p>
-              <p className="font-body text-sm text-secondary max-w-sm text-center leading-relaxed">
-                {dinoBuddyMode
-                  ? "Good to see you. Say anything — or just hang out. I'm right here."
-                  : "Whatever you carry, you can set it down here. Say anything — or nothing at all."}
-              </p>
+            <div className="flex flex-col items-center justify-center min-h-[38vh] gap-6 px-2">
+              <div className="text-center space-y-3">
+                <p className="font-display text-[2rem] md:text-[2.25rem] text-warm-50 leading-tight">
+                  {dinoBuddyMode
+                    ? userName
+                      ? `Hey ${userName}! 🦖`
+                      : "Hey! 🦖"
+                    : userName
+                      ? `Welcome back, ${userName}`
+                      : "Hello"}
+                </p>
+                <p className="font-body text-[0.9375rem] text-secondary max-w-md mx-auto leading-relaxed">
+                  {dinoBuddyMode
+                    ? "Good to see you. Say anything — or just hang out. I'm right here."
+                    : "Whatever you carry, you can set it down here. Say anything — or nothing at all."}
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2 max-w-lg">
+                {(dinoBuddyMode ? SUGGESTIONS_DINO : SUGGESTIONS_DEFAULT).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setInput(s);
+                      textareaRef.current?.focus();
+                    }}
+                    className="suggestion-chip"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -232,22 +261,23 @@ export default function Sanctuary() {
           ))}
 
           {isStreaming && streamingContent && (
-            <div className="message-appear flex justify-start">
-              <div className="max-w-[85%] md:max-w-[75%] px-5 py-3.5 rounded-2xl rounded-bl-sm border border-warm-400/10 bg-surface/80">
-                <div className="prose-you font-body text-base leading-relaxed">
+            <div className="message-appear">
+              <div className="msg-assistant-block max-w-none">
+                <p className="msg-label">{dinoBuddyMode ? "Dino Buddy" : "You"}</p>
+                <div className="prose-you font-body">
                   <Markdown>{streamingContent}</Markdown>
-                  <span className="inline-block w-0.5 h-4 bg-warm-400/60 animate-blink ml-0.5 align-middle" />
+                  <span className="inline-block w-0.5 h-[1.1em] bg-warm-400/50 animate-blink ml-0.5 align-middle rounded-full" />
                 </div>
               </div>
             </div>
           )}
 
           {isStreaming && !streamingContent && (
-            <div className="flex items-center gap-2 px-4 py-2">
+            <div className="flex items-center gap-2.5 py-1">
               <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-warm-400/40 animate-breathe" />
-                <span className="w-1.5 h-1.5 rounded-full bg-warm-400/40 animate-breathe" style={{ animationDelay: "0.3s" }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-warm-400/40 animate-breathe" style={{ animationDelay: "0.6s" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-warm-400/35 animate-breathe" />
+                <span className="w-1.5 h-1.5 rounded-full bg-warm-400/35 animate-breathe" style={{ animationDelay: "0.3s" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-warm-400/35 animate-breathe" style={{ animationDelay: "0.6s" }} />
               </div>
             </div>
           )}
@@ -257,8 +287,8 @@ export default function Sanctuary() {
       </div>
 
       {pendingAttachments.length > 0 && (
-        <div className="px-4 md:px-0">
-          <div className="max-w-2xl mx-auto">
+        <div className="px-4 md:px-6">
+          <div className="max-w-3xl mx-auto">
             <div className="flex flex-wrap gap-2 ml-1 mb-2">
               {pendingAttachments.map((att, i) => (
                 <div key={i} className="relative group">
@@ -287,62 +317,68 @@ export default function Sanctuary() {
         </div>
       )}
 
-      <div className="px-4 md:px-0 pt-2 safe-bottom chat-dock">
-        <div className="max-w-2xl mx-auto">
-          <div className="chat-input-wrap relative flex items-end gap-2 backdrop-blur-sm rounded-2xl px-4 py-3">
-            <button onClick={() => fileInputRef.current?.click()} className="icon-btn" title="Attach file">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-              </svg>
-            </button>
-
-            <button onClick={() => setShowCamera(true)} className="icon-btn" title="Camera">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                <circle cx="12" cy="13" r="3" />
-              </svg>
-            </button>
-
-            <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} multiple className="hidden" onChange={handleFileSelect} />
-
+      <div className="px-4 md:px-6 pt-3 safe-bottom chat-dock">
+        <div className="max-w-3xl mx-auto">
+          <div className="chat-input-wrap relative flex flex-col gap-2 px-3 py-3 md:px-4">
             <textarea
               ref={textareaRef}
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={dinoBuddyMode ? "What's on your mind?" : "Speak freely..."}
+              placeholder={dinoBuddyMode ? "What's on your mind?" : "Message You…"}
               rows={1}
-              className="flex-1 bg-transparent text-primary placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40"
+              className="w-full bg-transparent text-primary placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40 px-1"
             />
 
-            <button
-              onClick={() => {
-                unlockAudioForPlayback();
-                void enterAndroidImmersive();
-                setVoiceMode(true);
-              }}
-              className="icon-btn"
-              title="Voice mode"
-            >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" x2="12" y1="19" y2="22" />
-              </svg>
-            </button>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-0.5">
+                <button onClick={() => fileInputRef.current?.click()} className="icon-btn" title="Attach file">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
 
-            <button
-              onClick={handleSend}
-              disabled={(!input.trim() && pendingAttachments.length === 0) || isStreaming}
-              className="icon-btn disabled:opacity-20 disabled:cursor-default"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="19" x2="12" y2="5" />
-                <polyline points="5 12 12 5 19 12" />
-              </svg>
-            </button>
+                <button onClick={() => setShowCamera(true)} className="icon-btn" title="Camera">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                    <circle cx="12" cy="13" r="3" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={() => {
+                    unlockAudioForPlayback();
+                    void enterAndroidImmersive();
+                    setVoiceMode(true);
+                  }}
+                  className="icon-btn"
+                  title="Voice mode"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" x2="12" y1="19" y2="22" />
+                  </svg>
+                </button>
+              </div>
+
+              <button
+                onClick={handleSend}
+                disabled={(!input.trim() && pendingAttachments.length === 0) || isStreaming}
+                className={`send-btn ${(input.trim() || pendingAttachments.length > 0) && !isStreaming ? "is-ready" : ""}`}
+                title="Send"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5" />
+                  <polyline points="5 12 12 5 19 12" />
+                </svg>
+              </button>
+            </div>
+
+            <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} multiple className="hidden" onChange={handleFileSelect} />
           </div>
-          <p className="text-center text-secondary text-xs mt-3 font-body leading-relaxed">
+          <p className="text-center text-secondary text-[0.6875rem] mt-2.5 mb-1 font-body leading-relaxed opacity-80">
             {dinoBuddyMode ? (
               <>
                 Just you and Dino. Stays on your device until you send.
@@ -367,37 +403,46 @@ export default function Sanctuary() {
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
+  const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
+
+  if (isUser) {
+    return (
+      <div className="message-appear flex justify-end">
+        <div className="flex flex-col items-end max-w-[85%] md:max-w-[72%]">
+          <div className="msg-user-bubble font-body text-[0.9375rem] leading-relaxed">
+            {message.image && (
+              <img src={message.image} alt="" className="max-w-[240px] rounded-xl mb-2 border border-warm-400/5" />
+            )}
+            {message.attachments
+              ?.filter((att) => att.type !== "image" || att.data !== message.image)
+              .map((att, i) => (
+                <AttachmentBlock key={i} attachment={att} />
+              ))}
+            <p className="whitespace-pre-wrap selectable">{message.content}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`message-appear flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[85%] md:max-w-[75%]`}>
-        <div
-          className={`px-5 py-3.5 rounded-2xl font-body text-base leading-relaxed ${
-            isUser
-              ? "bg-warm-400/10 text-warm-50 rounded-br-sm"
-              : "bg-surface/80 text-warm-50 rounded-bl-sm border border-warm-400/10"
-          }`}
-        >
-          {message.image && (
-            <img src={message.image} alt="" className="max-w-[240px] rounded-xl mb-2 border border-warm-400/5" />
-          )}
-
-          {message.attachments
-            ?.filter((att) => att.type !== "image" || att.data !== message.image)
-            .map((att, i) => (
+    <div className="message-appear">
+      <div className="msg-assistant-block max-w-none">
+        <p className="msg-label">{dinoBuddyMode ? "Dino Buddy" : "You"}</p>
+        {message.image && (
+          <img src={message.image} alt="" className="max-w-[280px] rounded-xl mb-3 border border-warm-400/5" />
+        )}
+        {message.attachments
+          ?.filter((att) => att.type !== "image" || att.data !== message.image)
+          .map((att, i) => (
             <AttachmentBlock key={i} attachment={att} />
           ))}
-
-          {isUser ? (
-            <p className="whitespace-pre-wrap selectable">{message.content}</p>
-          ) : (
-            <div className="prose-you">
-              <Markdown>{message.content}</Markdown>
-            </div>
-          )}
-        </div>
-
-        {!isUser && message.content && <CopyButton text={message.content} />}
+        {message.content && (
+          <div className="prose-you">
+            <Markdown>{message.content}</Markdown>
+          </div>
+        )}
+        {message.content && <CopyButton text={message.content} />}
       </div>
     </div>
   );
@@ -419,7 +464,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="mt-1.5 ml-1 flex items-center gap-1 font-body text-[11px] text-secondary hover:text-warm-400 transition-colors cursor-pointer"
+      className="mt-2 flex items-center gap-1.5 font-body text-[11px] text-secondary hover:text-warm-400 transition-colors cursor-pointer opacity-70 hover:opacity-100"
       title={copied ? "Copied" : "Copy"}
     >
       {copied ? (

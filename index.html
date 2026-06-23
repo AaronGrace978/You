@@ -12,23 +12,23 @@
     <!-- Status-bar tint — kept in sync with the in-app theme at runtime (App.tsx).
          No prefers-color-scheme media here: it must follow the app's theme, not the
          system's, or the status bar shows a mismatched line above the content. -->
-    <meta name="theme-color" content="#09090f" />
+    <meta name="theme-color" content="#161618" />
 
     <!-- Paint the viewport immediately — prevents white gaps in installed PWAs -->
     <style>
       html,
       body {
         margin: 0;
-        background-color: #09090f;
+        background-color: #161618;
       }
       html[data-theme="light"],
       html[data-theme="light"] body {
-        background-color: #f8f5f0;
+        background-color: #faf9f5;
       }
     </style>
     <script>
       (function () {
-        var COLORS = { dark: "#09090f", light: "#f8f5f0" };
+        var COLORS = { dark: "#161618", light: "#faf9f5" };
         var theme = "dark";
         try {
           var raw = localStorage.getItem("you-app-state");
@@ -72,7 +72,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Karla:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Inter:ital,opsz,wght@0,14..32,300..600;1,14..32,300..600&family=Karla:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap"
       rel="stylesheet"
     />
   </head>

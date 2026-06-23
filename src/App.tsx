@@ -58,14 +58,14 @@ export default function App() {
       <div className="app-bg" aria-hidden />
       <div className="app-content h-full w-full">
       <InstallHint />
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-60">
         <div
           className="orb orb-warm animate-float"
-          style={{ width: 600, height: 600, top: "-10%", right: "-10%" }}
+          style={{ width: 480, height: 480, top: "-12%", right: "-12%" }}
         />
         <div
           className="orb orb-rose animate-float-delayed"
-          style={{ width: 500, height: 500, bottom: "-8%", left: "-8%" }}
+          style={{ width: 400, height: 400, bottom: "-10%", left: "-10%" }}
         />
       </div>
 

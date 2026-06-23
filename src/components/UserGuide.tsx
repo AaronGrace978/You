@@ -8,7 +8,7 @@ export default function UserGuide() {
   return (
     <div className="h-full w-full flex flex-col animate-fade-in">
       <header
-        className="safe-top safe-x flex items-center justify-between px-6 py-4 themed-border shrink-0"
+        className="chat-header safe-top safe-x flex items-center justify-between px-6 py-3.5 themed-border shrink-0"
         style={{ borderBottomWidth: 1, borderBottomStyle: "solid" }}
       >
         <button

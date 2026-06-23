@@ -1,4 +1,4 @@
-export const THEME_COLORS = { dark: "#09090f", light: "#f8f5f0" } as const;
+export const THEME_COLORS = { dark: "#161618", light: "#faf9f5" } as const;
 
 /** Chrome Android sometimes ignores theme-color updates — recreate the meta tag. */
 function setThemeColorMeta(color: string): void {

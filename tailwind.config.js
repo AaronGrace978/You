@@ -25,8 +25,8 @@ export default {
         muted: "rgb(var(--c-muted) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["Cormorant", "serif"],
-        body: ["Karla", "sans-serif"],
+        display: ["Cormorant", "Georgia", "serif"],
+        body: ["Inter", "Karla", "system-ui", "sans-serif"],
       },
       animation: {
         breathe: "breathe 4s ease-in-out infinite",

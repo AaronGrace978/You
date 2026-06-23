@@ -151,7 +151,7 @@ export default function Settings() {
 
   return (
     <div className="h-full w-full flex flex-col animate-fade-in">
-      <header className="safe-top safe-x flex items-center justify-between px-6 py-4 themed-border" style={{ borderBottomWidth: 1, borderBottomStyle: "solid" }}>
+      <header className="chat-header safe-top safe-x flex items-center justify-between px-6 py-3.5 themed-border" style={{ borderBottomWidth: 1, borderBottomStyle: "solid" }}>
         <button
           onClick={() => setView("sanctuary")}
           className="flex items-center gap-2 font-body text-xs tracking-[0.15em] uppercase transition-colors cursor-pointer"
