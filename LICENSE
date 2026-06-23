@@ -1,0 +1,79 @@
+PROPRIETARY SOFTWARE LICENSE
+You — Relational AI Presence
+
+Copyright (c) 2025–2026 Aaron Grace. All Rights Reserved.
+
+================================================================================
+ALL RIGHTS RESERVED. NO COPYING. NO CLONING. NO DERIVATIVE WORKS WITHOUT PERMISSION.
+================================================================================
+
+This repository, including but not limited to its source code, architecture,
+system design, prompts, persona definitions, memory models, adaptation logic,
+user experience flows, documentation, assets, and trade dress (collectively,
+the "Software"), is the exclusive intellectual property of Aaron Grace.
+
+BY VIEWING, ACCESSING, CLONING, FORKING, DOWNLOADING, OR USING THIS SOFTWARE,
+YOU AGREE TO THE FOLLOWING TERMS. IF YOU DO NOT AGREE, DO NOT USE THE SOFTWARE.
+
+1. GRANT OF LICENSE
+   No license is granted except the limited right to view this public
+   repository on GitHub and run the Software solely for your own personal,
+   non-commercial use of the hosted application or a local copy for yourself.
+   Any other use requires prior written permission from Aaron Grace.
+
+2. PROHIBITED CONDUCT
+   You may NOT, without express prior written authorization:
+
+   (a) Copy, reproduce, or redistribute any part of the Software;
+   (b) Fork, mirror, or republish this repository (or substantial portions)
+       under another name, brand, or product;
+   (c) Create derivative works, competing products, or "inspired-by" clones;
+   (d) Use the architecture, prompts, memory system, adaptation pipeline,
+       persona logic, or overall design as a template for another product;
+   (e) Reverse engineer, decompile, or extract the system design for reuse;
+   (f) Remove or alter copyright, license, or attribution notices;
+   (g) Use the Software or its architecture for commercial purposes;
+   (h) Sublicense, sell, lease, or distribute the Software or any portion;
+   (i) Use "You", "Dino Buddy", associated branding, or confusingly similar
+       marks in connection with any AI companion or related product.
+
+3. ARCHITECTURE & INTELLECTUAL PROPERTY
+   The relational memory architecture, soul/adaptation engine, reflect-revise
+   conversation loop, bond-stage model, semantic recall system, persona modes,
+   and overall system design are proprietary and original to Aaron Grace.
+   These elements are protected as trade secrets and creative works.
+   Inspiration is not permission. Similar implementations may constitute
+   infringement.
+
+4. TRADEMARK
+   "You", "Dino Buddy", and associated names, logos, and branding are the
+   property of Aaron Grace. No trademark license is granted.
+
+5. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+6. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL AARON GRACE BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY ARISING FROM USE OF THE SOFTWARE.
+
+7. ENFORCEMENT
+   Unauthorized use may result in DMCA takedowns, account reports, and pursuit
+   of all available legal remedies. Aaron Grace reserves all rights.
+
+8. LICENSING & CHANGES
+   Commercial licensing, partnership, or permission to fork/copy may be
+   available at the sole discretion of Aaron Grace. Terms are subject to
+   change at any time without notice. Contact for licensing inquiries:
+
+       Aaron Grace — Aarongrace978@gmail.com
+
+9. GOVERNING TERMS
+   This license is the entire agreement regarding use of the Software.
+   If any provision is unenforceable, the remainder remains in effect.
+
+================================================================================
+
+GitHub forks do not grant rights. Stars do not grant rights. "Learning from
+the code" does not grant rights to copy the architecture. Ask first.

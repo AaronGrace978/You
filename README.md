@@ -143,6 +143,16 @@ Whatever you carry, you can set it down here.
 
 <br />
 
+## License
+
+**All Rights Reserved — Proprietary. No copying.**
+
+This project is **not** open source. The architecture, prompts, memory system, personas, and all code are the exclusive property of **Aaron Grace**. You may use the app personally; you may **not** fork, clone, republish, or build derivative/competing products without written permission.
+
+See [LICENSE](LICENSE) for full terms. Licensing inquiries: Aarongrace978@gmail.com
+
+<br />
+
 ---
 
 <p align="center">
