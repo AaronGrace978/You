@@ -10,6 +10,7 @@ import InstallHint from "./components/InstallHint";
 import { applyThemeChrome, watchThemeChrome } from "./core/theme-chrome";
 import { initMemoryStore } from "./core/memory";
 import { enterAndroidImmersive, exitAndroidImmersive } from "./core/immersive";
+import { applyViewportInsets, watchViewportChrome } from "./core/viewport-chrome";
 
 export default function App() {
   const view = useStore((s) => s.view);
@@ -23,27 +24,24 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    applyViewportInsets();
+    return watchViewportChrome();
+  }, []);
+
+  useEffect(() => {
     if (!immersiveNav) {
       void exitAndroidImmersive();
       return;
     }
 
-    const tryImmersive = () => {
+    // Fullscreen API only applies in the browser tab — PWA is already edge-to-edge.
+    const onFirstTap = () => {
       if (!useStore.getState().voiceMode) void enterAndroidImmersive();
     };
-
-    tryImmersive();
-    const onPointer = () => tryImmersive();
-    document.addEventListener("pointerdown", onPointer, { once: true });
-
-    const onVisible = () => {
-      if (document.visibilityState === "visible") tryImmersive();
-    };
-    window.addEventListener("visibilitychange", onVisible);
+    document.addEventListener("pointerdown", onFirstTap, { once: true });
 
     return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      window.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("pointerdown", onFirstTap);
     };
   }, [immersiveNav, voiceMode]);
 

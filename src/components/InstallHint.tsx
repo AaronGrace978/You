@@ -20,7 +20,7 @@ export default function InstallHint() {
   return (
     <div
       className="absolute left-0 right-0 z-50 px-4"
-      style={{ top: "max(0.75rem, env(safe-area-inset-top, 0px))" }}
+      style={{ top: "calc(0.75rem + var(--inset-top, env(safe-area-inset-top, 0px)))" }}
     >
       <div
         className="mx-auto max-w-md rounded-2xl px-4 py-3 flex items-start gap-3 shadow-lg"

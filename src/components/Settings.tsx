@@ -744,8 +744,9 @@ export default function Settings() {
                     ))}
                   </div>
                   <p className="font-body text-[11px] leading-relaxed mt-2" style={{ color: "rgb(var(--c-muted))" }}>
-                    Tucks away bottom system buttons for a cleaner edge-to-edge view. Swipe up from the
-                    bottom edge to peek them again. Voice mode always enters immersive.
+                    When installed as an app, You already runs edge-to-edge. In the browser tab only,
+                    this hides the Android navigation bar after your first tap — swipe up from the bottom
+                    to peek it again.
                   </p>
                 </Field>
               )}

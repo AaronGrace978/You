@@ -409,7 +409,7 @@ export default function VoiceMode() {
 
       <div
         className="absolute left-0 right-0 flex items-center justify-center px-5"
-        style={{ top: "max(1.25rem, env(safe-area-inset-top))" }}
+        style={{ top: "calc(0.75rem + var(--inset-top))" }}
       >
         <span className="vm-wordmark text-lg select-none pointer-events-none">
           {dinoBuddyMode ? "Dino 🦖" : "You"}
@@ -520,7 +520,7 @@ export default function VoiceMode() {
 
       <div
         className="absolute left-0 right-0 flex items-end justify-center gap-6 px-6"
-        style={{ bottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
+        style={{ bottom: "calc(1.5rem + var(--inset-bottom))" }}
       >
         <div className="flex flex-col items-center gap-2">
           <button

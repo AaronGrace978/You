@@ -169,7 +169,7 @@ export default function Sanctuary() {
   };
 
   return (
-    <div className={`h-full w-full flex flex-col transition-all duration-700 ${entered ? "opacity-100" : "opacity-0"}`}>
+    <div className={`h-full w-full flex flex-col ${entered ? "opacity-100" : "opacity-0"} transition-opacity duration-700`}>
       {showCamera && (
         <Suspense fallback={null}>
           <CameraCapture
@@ -218,7 +218,7 @@ export default function Sanctuary() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 chat-scroll-fade">
+      <div className="flex-1 overflow-y-auto px-4 md:px-6 chat-scroll-fade chat-messages">
         <div className="max-w-3xl mx-auto py-6 md:py-10 space-y-8 md:space-y-10">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center min-h-[38vh] gap-6 px-2">
@@ -286,38 +286,39 @@ export default function Sanctuary() {
         </div>
       </div>
 
-      {pendingAttachments.length > 0 && (
-        <div className="px-4 md:px-6">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex flex-wrap gap-2 ml-1 mb-2">
-              {pendingAttachments.map((att, i) => (
-                <div key={i} className="relative group">
-                  {att.type === "image" ? (
-                    <img src={att.data} alt={att.name} className="h-16 w-16 object-cover rounded-lg border border-warm-400/10" />
-                  ) : (
-                    <div className="h-16 px-3 flex items-center gap-2 rounded-lg border border-warm-400/10" style={{ background: "rgb(var(--c-surface) / 0.6)" }}>
-                      <FileTypeIcon type={att.type} />
-                      <span className="font-body text-xs max-w-[100px] truncate text-secondary">{att.name}</span>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => removeAttachment(i)}
-                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-muted hover:text-warm-400 cursor-pointer transition-colors"
-                    style={{ background: "rgb(var(--c-deep))", border: "1px solid rgb(var(--c-accent) / 0.2)" }}
-                  >
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
+      <div className="chat-dock-fixed safe-x pt-2">
+        {pendingAttachments.length > 0 && (
+          <div className="px-4 md:px-6 mb-2">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex flex-wrap gap-2 ml-1">
+                {pendingAttachments.map((att, i) => (
+                  <div key={i} className="relative group">
+                    {att.type === "image" ? (
+                      <img src={att.data} alt={att.name} className="h-16 w-16 object-cover rounded-lg border border-warm-400/10" />
+                    ) : (
+                      <div className="h-16 px-3 flex items-center gap-2 rounded-lg border border-warm-400/10" style={{ background: "rgb(var(--c-surface) / 0.6)" }}>
+                        <FileTypeIcon type={att.type} />
+                        <span className="font-body text-xs max-w-[100px] truncate text-secondary">{att.name}</span>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeAttachment(i)}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-muted hover:text-warm-400 cursor-pointer transition-colors"
+                      style={{ background: "rgb(var(--c-deep))", border: "1px solid rgb(var(--c-accent) / 0.2)" }}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="px-4 md:px-6 pt-3 safe-bottom chat-dock">
+        <div className="px-4 md:px-6">
         <div className="max-w-3xl mx-auto">
           <div className="chat-input-wrap relative flex flex-col gap-2 px-3 py-3 md:px-4">
             <textarea
@@ -395,6 +396,7 @@ export default function Sanctuary() {
               </>
             )}
           </p>
+        </div>
         </div>
       </div>
     </div>

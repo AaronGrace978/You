@@ -10,6 +10,8 @@
   --c-muted: 161 156 148;
   --c-accent: 218 178 132;
   --c-border: 255 255 255;
+  --inset-top: env(safe-area-inset-top, 0px);
+  --inset-bottom: env(safe-area-inset-bottom, 0px);
   --orb-warm: rgba(201, 149, 107, 0.05);
   --orb-rose: rgba(184, 121, 122, 0.04);
   --shadow-soft: 0 2px 12px rgb(0 0 0 / 0.18);
@@ -508,7 +510,7 @@ select.input-field {
   transition: background-color 0.5s ease;
 }
 
-@media (display-mode: standalone), (display-mode: fullscreen), (max-width: 768px) {
+@media (display-mode: standalone), (display-mode: fullscreen) {
   .pwa-top-bleed,
   .pwa-bottom-bleed {
     display: block;
@@ -516,43 +518,25 @@ select.input-field {
 
   .pwa-top-bleed {
     top: 0;
-    height: max(env(safe-area-inset-top, 0px), 28px);
+    height: var(--inset-top);
   }
 
   .pwa-bottom-bleed {
     bottom: 0;
-    height: max(env(safe-area-inset-bottom, 0px), 34px);
+    height: var(--inset-bottom);
   }
 
   .app-bg {
-    /* Bleed past status bar + nav bar seams on Android */
-    top: calc(-1 * max(env(safe-area-inset-top, 0px), 28px));
-    bottom: calc(-1 * max(env(safe-area-inset-bottom, 0px), 34px));
-    min-height: calc(
-      100% + max(env(safe-area-inset-top, 0px), 28px) + max(env(safe-area-inset-bottom, 0px), 34px)
-    );
-    min-height: calc(
-      100dvh + max(env(safe-area-inset-top, 0px), 28px) + max(env(safe-area-inset-bottom, 0px), 34px)
-    );
+    top: calc(-1 * var(--inset-top));
+    bottom: calc(-1 * var(--inset-bottom));
+    min-height: calc(100% + var(--inset-top) + var(--inset-bottom));
+    min-height: calc(100dvh + var(--inset-top) + var(--inset-bottom));
   }
-}
-
-.app-content {
-  position: relative;
-  z-index: 1;
-  box-sizing: border-box;
 }
 
 .safe-top {
-  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  padding-top: max(0.75rem, var(--inset-top));
   background-color: rgb(var(--c-deep));
-}
-
-@media (display-mode: standalone), (display-mode: fullscreen) {
-  .safe-top {
-    /* Android often reports 0 safe-area — reserve status-bar height anyway */
-    padding-top: max(0.75rem, env(safe-area-inset-top, 0px), 28px);
-  }
 }
 
 .safe-x {
@@ -564,27 +548,41 @@ select.input-field {
 .safe-bottom,
 .chat-dock {
   background-color: rgb(var(--c-deep));
-  transition: background-color 0.5s ease;
 }
 
 .chat-dock {
   background: linear-gradient(to top, rgb(var(--c-deep)) 70%, rgb(var(--c-deep) / 0));
 }
 
-[data-theme="dark"] .chat-dock {
-  background: linear-gradient(to top, rgb(var(--c-deep)) 65%, rgb(var(--c-deep) / 0));
+.chat-dock-fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding-bottom: calc(0.625rem + var(--inset-bottom));
+  background: linear-gradient(to top, rgb(var(--c-deep)) 82%, rgb(var(--c-deep) / 0));
+}
+
+[data-theme="dark"] .chat-dock,
+[data-theme="dark"] .chat-dock-fixed {
+  background: linear-gradient(to top, rgb(var(--c-deep)) 78%, rgb(var(--c-deep) / 0));
 }
 
 .safe-bottom {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(0.75rem + var(--inset-bottom));
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-@media (display-mode: standalone), (display-mode: fullscreen), (max-width: 768px) {
-  .safe-bottom {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px), 34px);
-  }
+.chat-messages {
+  padding-bottom: var(--dock-reserve, 9rem);
+}
+
+.app-content {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
 }
 
 /* Larger, finger-friendly tap targets on touch devices. */
@@ -891,7 +889,7 @@ select.input-field {
 
 .vm-camera-pip {
   position: absolute;
-  top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem));
+  top: calc(4.5rem + var(--inset-top));
   right: 1rem;
   width: 7rem;
   height: 9.5rem;
