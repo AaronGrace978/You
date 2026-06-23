@@ -117,9 +117,9 @@ const BOND_HINTS: Record<BondStage, string> = {
 };
 
 const SHAPE_HINTS: Record<ResponseShape, string> = {
-  minimal: "Keep it short — a sentence or two, maybe less. Presence over paragraphs.",
-  natural: "Say what needs saying, then stop. No padding.",
-  grounded: "Steady and clear — especially if things are heavy or practical.",
+  minimal: "Brief is fine — one or two complete sentences. Never rush or drop words mid-thought.",
+  natural: "Say what needs saying in full, complete sentences, then stop. No padding.",
+  grounded: "Steady and clear — complete thoughts, especially when things are heavy or practical.",
 };
 
 const PLATITUDE_PATTERNS = [
@@ -233,10 +233,8 @@ function pickResponseShape(
   const words = content.trim().split(/\s+/).filter(Boolean).length;
 
   if (mode === "crisis") return "grounded";
-  if (mode === "quiet" || (energy === "low" && words <= 10)) return "minimal";
-  if (mode === "light" && energy !== "high") return "minimal";
-  if (mode === "presence" && emotionalWeight >= 0.6) return "minimal";
-  if (mixed && emotionalWeight >= 0.55) return "minimal";
+  if (mode === "quiet" && words <= 6) return "minimal";
+  if (mode === "light" && energy === "low" && words <= 5) return "minimal";
   if (mode === "practical" || mode === "seeking") return "grounded";
   return "natural";
 }
@@ -257,7 +255,7 @@ export function adaptToMessage(
   const hints: string[] = [MODE_HINTS[mode], BOND_HINTS[bondStage], SHAPE_HINTS[responseShape]];
 
   if (energy === "low") {
-    hints.push("Quiet message — match the volume. Less is more.");
+    hints.push("Quiet message — match the volume. You can be brief, but stay complete.");
   } else if (energy === "high") {
     hints.push("High energy — meet it, don't tame it.");
   }
@@ -284,7 +282,7 @@ export function adaptToMessage(
   const presenceNotes = [
     "Be a person, not a protocol.",
     "Warmth doesn't mean length.",
-    "If a short reply is enough, let it be short.",
+    "Every sentence must be complete — brevity is fine, but never skip words or sound rushed.",
   ];
 
   if (mode === "crisis") {
@@ -292,7 +290,7 @@ export function adaptToMessage(
   }
 
   if (responseShape === "minimal") {
-    presenceNotes.push("Silence-as-answer is allowed: a line, a breath, a '…' — then stop.");
+    presenceNotes.push("A short reply is OK — but each line still has to be a complete thought.");
   }
 
   return {
@@ -311,8 +309,8 @@ export function adaptToMessage(
 
 const DINO_MODE_OVERLAYS: Partial<Record<ConversationMode, string>> = {
   crisis:
-    "Soft dino mode. *sits close* Short. Steady. No fixing — just 'I'm here.' Resources only if it flows naturally.",
-  quiet: "Tiny reply territory. A line, a '…', maybe a gentle emoji. Don't fill the silence.",
+    "Soft dino mode. *sits close* Short, complete sentences. Steady. No fixing — just 'I'm here.' Resources only if it flows naturally.",
+  quiet: "Keep it small — one complete line can be enough. Don't fill the silence.",
   presence: "They want company, not management. Reflect feeling — questions optional.",
   venting: "Let them empty out. Match heat without adding fuel. 'That's so unfair' beats advice.",
   seeking: "Hear them first, then help honestly — still warm, not clinical.",
@@ -331,7 +329,7 @@ export function applyDinoBuddyTone(ctx: AdaptationContext): AdaptationContext {
   const presenceNotes = [
     "Be Dino — a real friend, not a protocol.",
     "Warmth doesn't mean length. Tiny arms, big heart.",
-    "If a short reply is enough, let it be short.",
+    "Every sentence must be complete — brief is fine, but never skip words or sound rushed.",
     "React to what they said — feel first, plan never (unless they ask).",
   ];
 
@@ -339,7 +337,7 @@ export function applyDinoBuddyTone(ctx: AdaptationContext): AdaptationContext {
     presenceNotes.push("*leans in close* No scripts. Just stay.");
   }
   if (ctx.responseShape === "minimal") {
-    presenceNotes.push("A breath, a 'yeah' — then stop. That's allowed.");
+    presenceNotes.push("A short reply is OK — but each line still has to be a complete thought.");
   }
   if (ctx.energy === "high") {
     presenceNotes.push("They're lit up — you can get a little more excited, but stay you.");
@@ -360,7 +358,7 @@ export function shouldReflect(
     if (pattern.test(draft)) return true;
   }
 
-  if (context.responseShape === "minimal" && draft.length > 280) return true;
+  if (context.responseShape === "minimal" && draft.length > 400) return true;
 
   if (context.mode === "seeking" && draft.length < 40) return true;
 
@@ -397,7 +395,9 @@ ${context.hints.map((h) => `- ${h}`).join("\n")}
 Draft:
 ${draft}
 
-Check: Does it sound like a person? Too long for a quiet moment? Too scripted for crisis? Repeating familiar phrases? Platitudes?
+Check: Does it sound like a person? Any incomplete sentences or missing words? Too long for a quiet moment? Too scripted for crisis? Repeating familiar phrases? Platitudes?
+
+If shortening, keep every sentence grammatically complete — never drop words to save space.
 
 If it's good — reply exactly: UNCHANGED
 If not — reply with ONLY the improved message. No preamble.`;

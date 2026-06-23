@@ -46,8 +46,7 @@ function likelyNeedsDeepPass(adaptation: ReturnType<typeof adaptToMessage>): boo
   return (
     adaptation.mode === "crisis" ||
     adaptation.emotionalWeight >= 0.85 ||
-    adaptation.mixed ||
-    adaptation.responseShape === "minimal"
+    adaptation.mixed
   );
 }
 
