@@ -83,6 +83,14 @@ interface AppState {
   voiceMode: boolean;
   setVoiceMode: (v: boolean) => void;
 
+  /** Hold mic to talk (recommended on phone). */
+  voicePttMode: boolean;
+  setVoicePttMode: (v: boolean) => void;
+
+  /** Attach camera frame with each voice message. */
+  voiceSeeMode: boolean;
+  setVoiceSeeMode: (v: boolean) => void;
+
   hasSeenLanding: boolean;
 }
 
@@ -223,6 +231,12 @@ export const useStore = create<AppState>()(
       voiceMode: false,
       setVoiceMode: (voiceMode) => set({ voiceMode }),
 
+      voicePttMode: true,
+      setVoicePttMode: (voicePttMode) => set({ voicePttMode }),
+
+      voiceSeeMode: false,
+      setVoiceSeeMode: (voiceSeeMode) => set({ voiceSeeMode }),
+
       hasSeenLanding: false,
     }),
     {
@@ -246,6 +260,8 @@ export const useStore = create<AppState>()(
         adaptiveLoops: state.adaptiveLoops,
         dinoBuddyMode: state.dinoBuddyMode,
         dinoEnergy: state.dinoEnergy,
+        voicePttMode: state.voicePttMode,
+        voiceSeeMode: state.voiceSeeMode,
         hasSeenLanding: state.hasSeenLanding,
       }),
       onRehydrateStorage: () => {

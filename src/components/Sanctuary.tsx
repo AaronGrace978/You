@@ -4,6 +4,7 @@ import { unlockAudioForPlayback } from "../core/voice";
 import Markdown from "react-markdown";
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
+const CameraCapture = lazy(() => import("./CameraCapture"));
 
 const ACCEPTED_TYPES =
   "image/*,.pdf,.txt,.md,.csv,.json,.xml,.html,.log,.py,.js,.ts,.jsx,.tsx,.c,.cpp,.java,.rs,.go";
@@ -73,6 +74,7 @@ export default function Sanctuary() {
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [showCamera, setShowCamera] = useState(false);
   const [entered, setEntered] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -155,8 +157,28 @@ export default function Sanctuary() {
 
   return (
     <div className={`h-full w-full flex flex-col transition-all duration-700 ${entered ? "opacity-100" : "opacity-0"}`}>
+      {showCamera && (
+        <Suspense fallback={null}>
+          <CameraCapture
+            onCapture={(dataUrl) => {
+              setPendingAttachments((prev) => [
+                ...prev,
+                { name: `photo-${Date.now()}.jpg`, type: "image", data: dataUrl, mimeType: "image/jpeg" },
+              ]);
+              setShowCamera(false);
+            }}
+            onClose={() => setShowCamera(false)}
+          />
+        </Suspense>
+      )}
       <header className="safe-top safe-x flex items-center justify-between px-6 py-4 border-b border-warm-400/5">
-        <h2 className="font-display text-lg text-warm-50 tracking-wide">You</h2>
+        <h2 className="font-display text-lg text-warm-50 tracking-wide">
+          {dinoBuddyMode ? (
+            <span>Dino <span className="opacity-90">🦖</span></span>
+          ) : (
+            "You"
+          )}
+        </h2>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <>
@@ -270,6 +292,13 @@ export default function Sanctuary() {
             <button onClick={() => fileInputRef.current?.click()} className="icon-btn" title="Attach file">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+            </button>
+
+            <button onClick={() => setShowCamera(true)} className="icon-btn" title="Camera">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                <circle cx="12" cy="13" r="3" />
               </svg>
             </button>
 

@@ -30,6 +30,8 @@ export default function Settings() {
   const elevenlabsApiKey = useStore((s) => s.elevenlabsApiKey);
   const elevenlabsVoiceId = useStore((s) => s.elevenlabsVoiceId);
   const useElevenLabsTts = useStore((s) => s.useElevenLabsTts);
+  const voicePttMode = useStore((s) => s.voicePttMode);
+  const voiceSeeMode = useStore((s) => s.voiceSeeMode);
   const adaptiveLoops = useStore((s) => s.adaptiveLoops);
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const dinoEnergy = useStore((s) => s.dinoEnergy);
@@ -43,6 +45,8 @@ export default function Settings() {
   const setUserName = useStore((s) => s.setUserName);
   const setElevenlabsApiKey = useStore((s) => s.setElevenlabsApiKey);
   const setUseElevenLabsTts = useStore((s) => s.setUseElevenLabsTts);
+  const setVoicePttMode = useStore((s) => s.setVoicePttMode);
+  const setVoiceSeeMode = useStore((s) => s.setVoiceSeeMode);
   const setAdaptiveLoops = useStore((s) => s.setAdaptiveLoops);
   const setDinoBuddyMode = useStore((s) => s.setDinoBuddyMode);
   const setDinoEnergy = useStore((s) => s.setDinoEnergy);
@@ -479,6 +483,77 @@ export default function Settings() {
 
           <Section title="Voice" icon={<MicIcon />}>
             <div className="settings-card space-y-4">
+              <Field label="Voice input">
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: true, label: "Push to talk", sub: "Hold mic — best on phone" },
+                      { id: false, label: "Always listening", sub: "Hands-free, silence sends" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={String(opt.id)}
+                      type="button"
+                      onClick={() => setVoicePttMode(opt.id)}
+                      className="flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
+                      style={{
+                        background:
+                          voicePttMode === opt.id
+                            ? "rgb(var(--c-accent) / 0.15)"
+                            : "rgb(var(--c-elevated) / 0.5)",
+                        color:
+                          voicePttMode === opt.id
+                            ? "rgb(var(--c-accent))"
+                            : "rgb(var(--c-muted))",
+                        border:
+                          voicePttMode === opt.id
+                            ? "1px solid rgb(var(--c-accent) / 0.3)"
+                            : "1px solid rgb(var(--c-border) / 0.3)",
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      <span className="text-[10px] opacity-70">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="See mode (voice)">
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: true, label: "On", sub: "Camera frame with each voice message" },
+                      { id: false, label: "Off", sub: "Voice only" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={String(opt.id)}
+                      type="button"
+                      onClick={() => setVoiceSeeMode(opt.id)}
+                      className="flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
+                      style={{
+                        background:
+                          voiceSeeMode === opt.id
+                            ? "rgb(var(--c-accent) / 0.15)"
+                            : "rgb(var(--c-elevated) / 0.5)",
+                        color:
+                          voiceSeeMode === opt.id
+                            ? "rgb(var(--c-accent))"
+                            : "rgb(var(--c-muted))",
+                        border:
+                          voiceSeeMode === opt.id
+                            ? "1px solid rgb(var(--c-accent) / 0.3)"
+                            : "1px solid rgb(var(--c-border) / 0.3)",
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      <span className="text-[10px] opacity-70">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="font-body text-[10px] mt-2 leading-relaxed opacity-80" style={{ color: "rgb(var(--c-muted))" }}>
+                  Uses a vision-capable model (Ollama Cloud, OpenAI, or Anthropic). Point and ask.
+                </p>
+              </Field>
               <Field label="Speech engine">
                 <div className="flex gap-2">
                   {(

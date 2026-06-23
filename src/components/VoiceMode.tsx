@@ -3,6 +3,7 @@ import { useStore } from "../store";
 import {
   startListening,
   stopListening,
+  endPttCapture,
   speakAloud,
   stopSpeaking,
   stopAll,
@@ -11,14 +12,25 @@ import {
   pause,
   SpeechStreamQueue,
 } from "../core/voice";
+import {
+  openCameraStream,
+  stopCameraStream,
+  captureVideoFrame,
+  attachStreamToVideo,
+  isCameraSupported,
+} from "../core/camera";
 import { generateResponse } from "../core/conversation";
 import { rememberMessage } from "../core/memory";
 import { acquireWakeLock, releaseWakeLock, watchWakeLockRenew } from "../core/wake-lock";
 
-type VoiceState = "listening" | "processing" | "speaking" | "error" | "paused";
+type VoiceState = "ready" | "listening" | "processing" | "speaking" | "error" | "paused";
 
 export default function VoiceMode() {
   const setVoiceMode = useStore((s) => s.setVoiceMode);
+  const voicePttMode = useStore((s) => s.voicePttMode);
+  const voiceSeeMode = useStore((s) => s.voiceSeeMode);
+  const setVoiceSeeMode = useStore((s) => s.setVoiceSeeMode);
+  const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const provider = useStore((s) => s.provider);
   const model = useStore((s) => s.model);
   const apiKey = useStore((s) => s.apiKey);
@@ -31,18 +43,23 @@ export default function VoiceMode() {
   const elevenlabsVoiceId = useStore((s) => s.elevenlabsVoiceId);
   const useElevenLabsTts = useStore((s) => s.useElevenLabsTts);
 
-  const [state, setState] = useState<VoiceState>("listening");
+  const [state, setState] = useState<VoiceState>(voicePttMode ? "ready" : "listening");
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
   const [hint, setHint] = useState("");
   const [entered, setEntered] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [pttHolding, setPttHolding] = useState(false);
 
-  const conversationRef = useRef<{ role: string; content: string }[]>([]);
+  const conversationRef = useRef<{ role: string; content: string; image?: string }[]>([]);
   const activeRef = useRef(true);
   const busyRef = useRef(false);
   const handlingRef = useRef(false);
   const pausedRef = useRef(false);
+  const pttActiveRef = useRef(false);
+  const speechQueueRef = useRef<SpeechStreamQueue | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const configRef = useRef({
     provider,
@@ -76,11 +93,61 @@ export default function VoiceMode() {
     return () => clearTimeout(t);
   }, []);
 
+  const stopCamera = useCallback(() => {
+    stopCameraStream(streamRef.current);
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    if (!isCameraSupported()) return;
+    stopCamera();
+    try {
+      const stream = await openCameraStream("environment");
+      streamRef.current = stream;
+      const video = videoRef.current;
+      if (video) attachStreamToVideo(video, stream);
+    } catch {
+      setHint("Camera unavailable — turn off See mode or allow camera access.");
+      setVoiceSeeMode(false);
+    }
+  }, [setVoiceSeeMode, stopCamera]);
+
+  useEffect(() => {
+    if (!voiceSeeMode) {
+      stopCamera();
+      return;
+    }
+    const id = window.setTimeout(() => {
+      void startCamera();
+    }, 80);
+    return () => {
+      clearTimeout(id);
+      stopCamera();
+    };
+  }, [voiceSeeMode, startCamera, stopCamera]);
+
+  const grabFrame = (): string | undefined => {
+    if (!voiceSeeMode || !videoRef.current) return undefined;
+    return captureVideoFrame(videoRef.current) || undefined;
+  };
+
   const handleClose = useCallback(() => {
     activeRef.current = false;
     stopAll();
+    stopCamera();
     setVoiceMode(false);
-  }, [setVoiceMode]);
+  }, [setVoiceMode, stopCamera]);
+
+  const interruptSpeaking = useCallback(() => {
+    if (state !== "speaking") return;
+    speechQueueRef.current?.stop();
+    speechQueueRef.current = null;
+    stopSpeaking();
+    setResponse("");
+    if (voicePttMode) setState("ready");
+    else if (!pausedRef.current) beginListeningRef.current();
+  }, [state, voicePttMode]);
 
   const togglePause = useCallback(() => {
     const next = !pausedRef.current;
@@ -90,127 +157,142 @@ export default function VoiceMode() {
     if (next) {
       stopListening();
       stopSpeaking();
+      speechQueueRef.current?.stop();
       setState("paused");
       setTranscript("");
     } else {
       setHint("");
       if (!busyRef.current && !handlingRef.current) {
-        beginListeningRef.current();
+        if (voicePttMode) setState("ready");
+        else beginListeningRef.current();
       }
     }
-  }, []);
+  }, [voicePttMode]);
 
-  const processUtterance = useCallback(async (text: string) => {
-    if (handlingRef.current || !text.trim()) return;
-    handlingRef.current = true;
-    busyRef.current = true;
+  const processUtterance = useCallback(
+    async (text: string, image?: string) => {
+      const trimmed = text.trim();
+      const frame = image ?? grabFrame();
+      let content = trimmed;
+      if (!content && frame) content = "What do you see?";
+      if (!content && !frame) return;
+      if (handlingRef.current) return;
 
-    stopListening();
-    setState("processing");
-    setTranscript(text);
-    setHint("");
+      handlingRef.current = true;
+      busyRef.current = true;
+      stopListening();
+      setState("processing");
+      setTranscript(content);
+      setHint(frame ? "Seeing…" : "");
 
-    const cfg = configRef.current;
-    const store = useStore.getState();
+      const cfg = configRef.current;
+      const store = useStore.getState();
 
-    conversationRef.current.push({ role: "user", content: text });
+      const userTurn = { role: "user" as const, content, ...(frame ? { image: frame } : {}) };
+      conversationRef.current.push(userTurn);
 
-    const userMsg = {
-      id: crypto.randomUUID(),
-      role: "user" as const,
-      content: text,
-      timestamp: Date.now(),
-    };
-    useStore.setState((s) => ({ messages: [...s.messages, userMsg] }));
-    rememberMessage(userMsg);
-
-    try {
-      const draftRef = { text: "" };
-      let speakingStarted = false;
-
-      const speechQueue = new SpeechStreamQueue({
-        useElevenLabs: cfg.useElevenLabsTts,
-        elevenlabsApiKey: cfg.elevenlabsApiKey,
-        elevenlabsVoiceId: cfg.elevenlabsVoiceId,
-      });
-
-      const aiResponse = await generateResponse(
-        conversationRef.current,
-        {
-          provider: cfg.provider,
-          model: cfg.model || "glm-5.2",
-          ollamaVisionModel: cfg.ollamaVisionModel,
-          apiKey: cfg.apiKey,
-          ollamaUrl: cfg.ollamaUrl,
-          ollamaProxyUrl: cfg.ollamaProxyUrl,
-          ollamaCloudApiKey: cfg.ollamaCloudApiKey,
-          ollamaCloudUrl: cfg.ollamaCloudUrl,
-          userName: store.userName,
-          adaptiveLoops: store.adaptiveLoops,
-          dinoBuddyMode: store.dinoBuddyMode,
-          dinoEnergy: store.dinoEnergy,
-        },
-        (token) => {
-          draftRef.text += token;
-          setResponse(draftRef.text);
-          if (!speakingStarted && draftRef.text.trim().length > 0) {
-            speakingStarted = true;
-            setState("speaking");
-          }
-          speechQueue.feed(token);
-        }
-      );
-
-      await speechQueue.flush();
-
-      conversationRef.current.push({ role: "assistant", content: aiResponse });
-      setResponse(aiResponse);
-
-      const assistantMsg = {
+      const userMsg = {
         id: crypto.randomUUID(),
-        role: "assistant" as const,
-        content: aiResponse,
+        role: "user" as const,
+        content,
         timestamp: Date.now(),
+        image: frame,
       };
-      useStore.setState((s) => ({
-        messages: [...s.messages, assistantMsg],
-        sessionCount: s.sessionCount + 1,
-      }));
-      rememberMessage(assistantMsg);
+      useStore.setState((s) => ({ messages: [...s.messages, userMsg] }));
+      rememberMessage(userMsg);
 
-      if (!speakingStarted && aiResponse.trim()) {
-        setState("speaking");
-        await speakAloud(aiResponse, cfg.elevenlabsApiKey, cfg.elevenlabsVoiceId, {
+      try {
+        const draftRef = { text: "" };
+        let speakingStarted = false;
+
+        const speechQueue = new SpeechStreamQueue({
           useElevenLabs: cfg.useElevenLabsTts,
+          elevenlabsApiKey: cfg.elevenlabsApiKey,
+          elevenlabsVoiceId: cfg.elevenlabsVoiceId,
         });
-      } else if (cfg.useElevenLabsTts && !cfg.elevenlabsApiKey.trim()) {
-        setHint("ElevenLabs is on but no API key — using device voice. Add a key in Settings.");
-      }
-    } catch (err) {
-      console.error("Voice mode error:", err);
-      setState("error");
-      setHint(err instanceof Error ? err.message : "Something went wrong");
-      await pause(2000);
-    } finally {
-      handlingRef.current = false;
-      busyRef.current = false;
-      setTranscript("");
-      setResponse("");
+        speechQueueRef.current = speechQueue;
 
-      if (activeRef.current && !pausedRef.current) {
-        // Brief pause so the mic doesn't pick up speaker echo
-        await pause(600);
-        beginListeningRef.current();
-      } else if (pausedRef.current) {
-        setState("paused");
+        const aiResponse = await generateResponse(
+          conversationRef.current,
+          {
+            provider: cfg.provider,
+            model: cfg.model || "glm-5.2",
+            ollamaVisionModel: cfg.ollamaVisionModel,
+            apiKey: cfg.apiKey,
+            ollamaUrl: cfg.ollamaUrl,
+            ollamaProxyUrl: cfg.ollamaProxyUrl,
+            ollamaCloudApiKey: cfg.ollamaCloudApiKey,
+            ollamaCloudUrl: cfg.ollamaCloudUrl,
+            userName: store.userName,
+            adaptiveLoops: store.adaptiveLoops,
+            dinoBuddyMode: store.dinoBuddyMode,
+            dinoEnergy: store.dinoEnergy,
+          },
+          (token) => {
+            draftRef.text += token;
+            setResponse(draftRef.text);
+            if (!speakingStarted && draftRef.text.trim().length > 0) {
+              speakingStarted = true;
+              setState("speaking");
+            }
+            speechQueue.feed(token);
+          }
+        );
+
+        await speechQueue.flush();
+        speechQueueRef.current = null;
+
+        conversationRef.current.push({ role: "assistant", content: aiResponse });
+        setResponse(aiResponse);
+
+        const assistantMsg = {
+          id: crypto.randomUUID(),
+          role: "assistant" as const,
+          content: aiResponse,
+          timestamp: Date.now(),
+        };
+        useStore.setState((s) => ({
+          messages: [...s.messages, assistantMsg],
+          sessionCount: s.sessionCount + 1,
+        }));
+        rememberMessage(assistantMsg);
+
+        if (!speakingStarted && aiResponse.trim()) {
+          setState("speaking");
+          await speakAloud(aiResponse, cfg.elevenlabsApiKey, cfg.elevenlabsVoiceId, {
+            useElevenLabs: cfg.useElevenLabsTts,
+          });
+        }
+        setHint("");
+      } catch (err) {
+        console.error("Voice mode error:", err);
+        setState("error");
+        setHint(err instanceof Error ? err.message : "Something went wrong");
+        await pause(2000);
+      } finally {
+        handlingRef.current = false;
+        busyRef.current = false;
+        speechQueueRef.current = null;
+        setTranscript("");
+        setResponse("");
+
+        if (activeRef.current && !pausedRef.current) {
+          await pause(500);
+          if (voicePttMode) setState("ready");
+          else beginListeningRef.current();
+        } else if (pausedRef.current) {
+          setState("paused");
+        }
       }
-    }
-  }, []);
+    },
+    [voicePttMode]
+  );
 
   const beginListeningRef = useRef<() => void>(() => {});
 
   beginListeningRef.current = () => {
     if (!activeRef.current || busyRef.current || handlingRef.current || pausedRef.current) return;
+    if (voicePttMode) return;
 
     if (!isSpeechRecognitionSupported()) {
       setState("error");
@@ -226,11 +308,10 @@ export default function VoiceMode() {
         if (!busyRef.current) setTranscript(t);
       },
       onFinal: (t) => {
-        processUtterance(t);
+        void processUtterance(t);
       },
       onError: (error) => {
         if (busyRef.current) return;
-        console.warn("Recognition error:", error);
         setState("error");
         setHint(`Mic error: ${error}. Retrying…`);
         setTimeout(() => {
@@ -240,6 +321,40 @@ export default function VoiceMode() {
       onEnd: () => {},
     });
   };
+
+  const startPtt = useCallback(() => {
+    if (pttActiveRef.current || busyRef.current || pausedRef.current) return;
+    if (!isSpeechRecognitionSupported()) {
+      setHint("Voice input needs Chrome (Android) or Safari (iPhone).");
+      return;
+    }
+    unlockAudioForPlayback();
+    pttActiveRef.current = true;
+    setPttHolding(true);
+    setTranscript("");
+    setState("listening");
+
+    startListening(
+      {
+        onInterim: (t) => setTranscript(t),
+        onFinal: () => {},
+        onError: (error) => {
+          if (error !== "aborted") setHint(`Mic: ${error}`);
+        },
+        onEnd: () => {},
+      },
+      { ptt: true }
+    );
+  }, []);
+
+  const endPtt = useCallback(() => {
+    if (!pttActiveRef.current) return;
+    pttActiveRef.current = false;
+    setPttHolding(false);
+    endPttCapture((text) => {
+      void processUtterance(text);
+    });
+  }, [processUtterance]);
 
   useEffect(() => {
     activeRef.current = true;
@@ -251,41 +366,51 @@ export default function VoiceMode() {
     });
     const unwatchLock = watchWakeLockRenew(() => activeRef.current);
 
-    beginListeningRef.current();
+    if (!voicePttMode) beginListeningRef.current();
+
     return () => {
       activeRef.current = false;
       unwatchLock();
       releaseLock();
       void releaseWakeLock();
       stopAll();
+      stopCamera();
     };
-  }, []);
+  }, [voicePttMode, stopCamera]);
 
   const statusText: Record<VoiceState, string> = {
-    listening: "Listening",
-    processing: "Thinking",
-    speaking: "Speaking",
+    ready: voicePttMode ? "Hold to talk" : "Listening",
+    listening: voicePttMode && pttHolding ? "Hearing you" : "Listening",
+    processing: voiceSeeMode ? "Seeing & thinking" : "Thinking",
+    speaking: "Speaking — tap to stop",
     error: "Reconnecting",
     paused: "Paused",
   };
 
   const showDots = state === "listening" || state === "processing" || state === "speaking";
+  const rootClass = `vm-root transition-opacity duration-700 ${entered ? "opacity-100" : "opacity-0"}${dinoBuddyMode ? " vm-root-dino" : ""}`;
 
   return (
-    <div
-      className={`vm-root transition-opacity duration-700 ${entered ? "opacity-100" : "opacity-0"}`}
-    >
+    <div className={rootClass}>
       <div className="vm-aurora vm-aurora-1" />
       <div className="vm-aurora vm-aurora-2" />
       <div className="vm-aurora vm-aurora-3" />
       <div className="vm-vignette" />
 
-      {/* Top bar */}
+      {voiceSeeMode && (
+        <div className="vm-camera-pip">
+          <video ref={videoRef} className="vm-camera-video" playsInline muted />
+          <span className="vm-camera-badge">Seeing</span>
+        </div>
+      )}
+
       <div
         className="absolute left-0 right-0 flex items-center justify-between px-5"
         style={{ top: "max(1.25rem, env(safe-area-inset-top))" }}
       >
-        <span className="vm-wordmark text-lg select-none">You</span>
+        <span className="vm-wordmark text-lg select-none">
+          {dinoBuddyMode ? "Dino 🦖" : "You"}
+        </span>
         <button
           onClick={handleClose}
           aria-label="Close voice mode"
@@ -299,14 +424,16 @@ export default function VoiceMode() {
         </button>
       </div>
 
-      {/* Central presence */}
       <div className="flex flex-col items-center gap-7 px-6 w-full">
         <div
           className={`vm-orb transition-transform duration-700 ${entered ? "scale-100" : "scale-90"}`}
+          onClick={state === "speaking" ? interruptSpeaking : undefined}
+          role={state === "speaking" ? "button" : undefined}
+          aria-label={state === "speaking" ? "Stop speaking" : undefined}
         >
           <div className={`vm-halo ${state === "error" ? "is-error" : ""} ${state === "speaking" ? "is-speaking" : ""}`} />
 
-          {state === "listening" && (
+          {state === "listening" && !voicePttMode && (
             <>
               <span className="vm-ripple" />
               <span className="vm-ripple" style={{ animationDelay: "1.4s" }} />
@@ -324,7 +451,9 @@ export default function VoiceMode() {
                     ? "is-speaking"
                     : state === "listening"
                       ? "is-listening"
-                      : ""
+                      : state === "ready"
+                        ? "is-ready"
+                        : ""
             }`}
           >
             {state === "speaking" && (
@@ -349,7 +478,6 @@ export default function VoiceMode() {
           </div>
         </div>
 
-        {/* Status */}
         <div className="flex flex-col items-center gap-2 text-center">
           <h2 className="vm-status">
             {statusText[state]}
@@ -361,57 +489,83 @@ export default function VoiceMode() {
               </span>
             )}
           </h2>
-
           {hint && (
-            <p
-              className="font-body text-xs max-w-xs leading-relaxed px-4"
-              style={{ color: "rgb(var(--c-text) / 0.5)" }}
-            >
+            <p className="font-body text-xs max-w-xs leading-relaxed px-4" style={{ color: "rgb(var(--c-text) / 0.5)" }}>
               {hint}
             </p>
           )}
         </div>
 
-        {/* Live caption */}
         <div className="min-h-[3.5rem] max-h-[28vh] overflow-y-auto w-full max-w-lg text-center px-2">
-          {(state === "listening" || state === "paused") && transcript && (
-            <p
-              className="font-body text-base leading-relaxed message-appear selectable"
-              style={{ color: "rgb(var(--c-text) / 0.9)" }}
-            >
+          {(state === "listening" || state === "ready" || state === "paused") && transcript && (
+            <p className="font-body text-base leading-relaxed message-appear selectable" style={{ color: "rgb(var(--c-text) / 0.9)" }}>
               {transcript}
             </p>
           )}
           {state === "processing" && transcript && (
-            <p
-              className="font-body text-sm leading-relaxed italic message-appear selectable"
-              style={{ color: "rgb(var(--c-text) / 0.55)" }}
-            >
+            <p className="font-body text-sm leading-relaxed italic message-appear selectable" style={{ color: "rgb(var(--c-text) / 0.55)" }}>
               “{transcript}”
             </p>
           )}
           {state === "speaking" && response && (
-            <p
-              className="font-body text-base leading-relaxed message-appear selectable"
-              style={{ color: "rgb(var(--c-text) / 0.92)" }}
-            >
+            <p className="font-body text-base leading-relaxed message-appear selectable" style={{ color: "rgb(var(--c-text) / 0.92)" }}>
               {response.length > 320 ? response.slice(0, 320) + "…" : response}
             </p>
           )}
         </div>
       </div>
 
-      {/* Bottom controls */}
       <div
-        className="absolute flex items-end justify-center gap-8"
+        className="absolute left-0 right-0 flex items-end justify-center gap-6 px-6"
         style={{ bottom: "max(2.5rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
       >
         <div className="flex flex-col items-center gap-2">
           <button
-            onClick={togglePause}
-            aria-label={paused ? "Resume conversation" : "Pause microphone"}
-            className={`vm-icon-btn ${paused ? "is-active" : ""}`}
+            onClick={() => setVoiceSeeMode(!voiceSeeMode)}
+            aria-label={voiceSeeMode ? "Turn off camera" : "Turn on camera"}
+            className={`vm-icon-btn ${voiceSeeMode ? "is-active" : ""}`}
+            disabled={!isCameraSupported()}
           >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+              <circle cx="12" cy="13" r="3" />
+            </svg>
+          </button>
+          <span className="vm-ctrl-label">{voiceSeeMode ? "Seeing" : "See"}</span>
+        </div>
+
+        {voicePttMode ? (
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              className={`vm-ptt-btn ${pttHolding ? "is-holding" : ""}`}
+              aria-label="Hold to talk"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                startPtt();
+              }}
+              onPointerUp={(e) => {
+                e.preventDefault();
+                endPtt();
+              }}
+              onPointerCancel={endPtt}
+              onPointerLeave={(e) => {
+                if (pttHolding) endPtt();
+              }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" x2="12" y1="19" y2="22" />
+              </svg>
+            </button>
+            <span className="vm-ctrl-label">Hold</span>
+          </div>
+        ) : null}
+
+        <div className="flex flex-col items-center gap-2">
+          <button onClick={togglePause} aria-label={paused ? "Resume" : "Mute"} className={`vm-icon-btn ${paused ? "is-active" : ""}`}>
             {paused ? (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />

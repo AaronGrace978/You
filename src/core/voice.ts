@@ -16,6 +16,8 @@ let currentAudio: HTMLAudioElement | null = null;
 let audioUnlocked = false;
 /** Bumped on stopListening — stale recognition callbacks are ignored. */
 let listenSession = 0;
+/** Live transcript while PTT is held. */
+let pttTranscript = "";
 
 const SILENT_WAV =
   "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
@@ -53,7 +55,11 @@ export interface RecognitionCallbacks {
   onEnd: () => void;
 }
 
-/** Collapse "hey hey hey hey" stutter from duplicate recognition chunks. */
+export interface ListeningOptions {
+  /** Push-to-talk: no silence auto-send; call endPttCapture() on release. */
+  ptt?: boolean;
+}
+
 export function collapseRepeatedSpeech(text: string): string {
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (words.length <= 1) return text.trim();
@@ -77,17 +83,22 @@ function composeTranscript(event: any): string {
   return collapseRepeatedSpeech(text.trim());
 }
 
-export function startListening(callbacks: RecognitionCallbacks): void {
+export function startListening(
+  callbacks: RecognitionCallbacks,
+  options?: ListeningOptions
+): void {
   if (!SpeechRecognitionAPI) {
     callbacks.onError("Speech recognition not supported — try Chrome");
     return;
   }
 
+  const ptt = options?.ptt ?? false;
   stopListening();
   const session = listenSession;
+  pttTranscript = "";
 
   recognition = new SpeechRecognitionAPI();
-  recognition.continuous = false;
+  recognition.continuous = ptt;
   recognition.interimResults = true;
   recognition.lang = "en-US";
   recognition.maxAlternatives = 1;
@@ -109,11 +120,14 @@ export function startListening(callbacks: RecognitionCallbacks): void {
     if (session !== listenSession) return;
 
     lastTranscript = composeTranscript(event);
+    pttTranscript = lastTranscript;
     callbacks.onInterim(lastTranscript);
 
-    if (silenceTimer) clearTimeout(silenceTimer);
-    if (lastTranscript) {
-      silenceTimer = setTimeout(() => deliver(lastTranscript), 1600);
+    if (!ptt) {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      if (lastTranscript) {
+        silenceTimer = setTimeout(() => deliver(lastTranscript), 1600);
+      }
     }
   };
 
@@ -126,7 +140,7 @@ export function startListening(callbacks: RecognitionCallbacks): void {
   recognition.onend = () => {
     if (session !== listenSession) return;
     if (silenceTimer) clearTimeout(silenceTimer);
-    if (!delivered && lastTranscript) deliver(lastTranscript);
+    if (!ptt && !delivered && lastTranscript) deliver(lastTranscript);
     callbacks.onEnd();
   };
 
@@ -135,6 +149,14 @@ export function startListening(callbacks: RecognitionCallbacks): void {
   } catch (err) {
     callbacks.onError(err instanceof Error ? err.message : "Could not start microphone");
   }
+}
+
+/** End PTT hold — deliver transcript and stop mic. */
+export function endPttCapture(onFinal: (text: string) => void): void {
+  const text = collapseRepeatedSpeech(pttTranscript);
+  stopListening();
+  pttTranscript = "";
+  if (text) onFinal(text);
 }
 
 export function stopListening(): void {
