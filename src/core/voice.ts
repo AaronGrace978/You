@@ -85,21 +85,34 @@ export function collapseRepeatedSpeech(text: string): string {
   return clean;
 }
 
-/** Compose full transcript from the results array — last interim wins, finals concatenate. */
-function composeFromResults(results: any): string {
-  let finalText = "";
-  let interimText = "";
+/** Merge prior PTT text with a new recognition chunk without duplicating overlap. */
+function mergeTranscripts(prefix: string, suffix: string): string {
+  const a = prefix.trim();
+  const b = suffix.trim();
+  if (!a) return collapseRepeatedSpeech(b);
+  if (!b) return collapseRepeatedSpeech(a);
 
-  for (let i = 0; i < results.length; i++) {
-    const piece = results[i][0]?.transcript ?? "";
-    if (results[i].isFinal) {
-      finalText += piece;
-    } else {
-      interimText = piece;
+  const aLower = a.toLowerCase();
+  const bLower = b.toLowerCase();
+  if (bLower.startsWith(aLower)) return collapseRepeatedSpeech(b);
+  if (aLower.endsWith(bLower)) return collapseRepeatedSpeech(a);
+
+  const maxOverlap = Math.min(a.length, b.length);
+  for (let len = maxOverlap; len > 0; len--) {
+    if (aLower.endsWith(bLower.slice(0, len))) {
+      return collapseRepeatedSpeech(a + b.slice(len));
     }
   }
 
-  return collapseRepeatedSpeech((finalText + interimText).trim());
+  return collapseRepeatedSpeech(`${a} ${b}`);
+}
+
+/** Mobile browsers emit cumulative finals — use only the latest result. */
+function composeFromResults(results: any): string {
+  if (!results?.length) return "";
+  const last = results[results.length - 1];
+  const text = last[0]?.transcript ?? "";
+  return collapseRepeatedSpeech(text.trim());
 }
 
 export function startListening(
@@ -140,9 +153,7 @@ export function startListening(
 
   const syncTranscript = (event: any) => {
     const chunk = composeFromResults(event.results);
-    lastTranscript = ptt
-      ? collapseRepeatedSpeech((pttCommitted + chunk).trim())
-      : chunk;
+    lastTranscript = ptt ? mergeTranscripts(pttCommitted, chunk) : chunk;
     pttTranscript = lastTranscript;
     callbacks.onInterim(lastTranscript);
   };
