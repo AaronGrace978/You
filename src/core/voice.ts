@@ -18,6 +18,8 @@ let audioUnlocked = false;
 let listenSession = 0;
 /** Live transcript while PTT is held. */
 let pttTranscript = "";
+/** True while a PTT session is open (button held). */
+let pttSessionActive = false;
 
 const SILENT_WAV =
   "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
@@ -61,9 +63,10 @@ export interface ListeningOptions {
 }
 
 export function collapseRepeatedSpeech(text: string): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= 1) return text.trim();
+  let clean = text.trim().replace(/\s+/g, " ");
+  if (!clean) return "";
 
+  const words = clean.split(" ");
   const deduped: string[] = [];
   for (const word of words) {
     const prev = deduped[deduped.length - 1];
@@ -71,16 +74,24 @@ export function collapseRepeatedSpeech(text: string): string {
       deduped.push(word);
     }
   }
+  clean = deduped.join(" ");
 
-  return deduped.join(" ");
+  // Safety net for glued stutters from overlapping segments (e.g. "heyheyhey", "whatswhats").
+  clean = clean.replace(/\b(\w{2,})\1+\b/gi, "$1");
+
+  return clean;
 }
 
-function composeTranscript(event: any): string {
-  let text = "";
-  for (let i = 0; i < event.results.length; i++) {
-    text += event.results[i][0].transcript;
+/** Build live display text — finalized segments plus any interim tail from this event. */
+function buildLiveTranscript(finalized: string, event: any): string {
+  let interim = "";
+  for (let i = event.resultIndex; i < event.results.length; i++) {
+    const result = event.results[i];
+    if (!result.isFinal) {
+      interim += result[0]?.transcript ?? "";
+    }
   }
-  return collapseRepeatedSpeech(text.trim());
+  return collapseRepeatedSpeech((finalized + interim).trim());
 }
 
 export function startListening(
@@ -96,6 +107,7 @@ export function startListening(
   stopListening();
   const session = listenSession;
   pttTranscript = "";
+  pttSessionActive = ptt;
 
   recognition = new SpeechRecognitionAPI();
   recognition.continuous = ptt;
@@ -103,6 +115,7 @@ export function startListening(
   recognition.lang = "en-US";
   recognition.maxAlternatives = 1;
 
+  let finalizedSegments = "";
   let lastTranscript = "";
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let delivered = false;
@@ -119,7 +132,14 @@ export function startListening(
   recognition.onresult = (event: any) => {
     if (session !== listenSession) return;
 
-    lastTranscript = composeTranscript(event);
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const result = event.results[i];
+      if (result.isFinal) {
+        finalizedSegments += result[0]?.transcript ?? "";
+      }
+    }
+
+    lastTranscript = buildLiveTranscript(finalizedSegments, event);
     pttTranscript = lastTranscript;
     callbacks.onInterim(lastTranscript);
 
@@ -140,6 +160,17 @@ export function startListening(
   recognition.onend = () => {
     if (session !== listenSession) return;
     if (silenceTimer) clearTimeout(silenceTimer);
+
+    // Mobile browsers end recognition after silence — keep listening while PTT is held.
+    if (ptt && pttSessionActive) {
+      try {
+        recognition.start();
+      } catch {
+        callbacks.onEnd();
+      }
+      return;
+    }
+
     if (!ptt && !delivered && lastTranscript) deliver(lastTranscript);
     callbacks.onEnd();
   };
@@ -153,6 +184,7 @@ export function startListening(
 
 /** End PTT hold — deliver transcript and stop mic. */
 export function endPttCapture(onFinal: (text: string) => void): void {
+  pttSessionActive = false;
   const text = collapseRepeatedSpeech(pttTranscript);
   stopListening();
   pttTranscript = "";
@@ -161,6 +193,7 @@ export function endPttCapture(onFinal: (text: string) => void): void {
 
 export function stopListening(): void {
   listenSession++;
+  pttSessionActive = false;
   if (recognition) {
     try {
       recognition.abort();
