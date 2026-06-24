@@ -874,6 +874,7 @@ select.input-field {
   justify-content: center;
   cursor: pointer;
   touch-action: none;
+  -webkit-user-select: none;
   user-select: none;
   color: rgb(var(--c-text));
   background: rgb(var(--c-accent) / 0.2);

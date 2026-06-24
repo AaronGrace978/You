@@ -326,15 +326,19 @@ export default function VoiceMode() {
   };
 
   const startPtt = useCallback(() => {
-    if (pttActiveRef.current || busyRef.current || pausedRef.current) return;
+    if (pttActiveRef.current || busyRef.current || pausedRef.current || handlingRef.current) return;
     if (!isSpeechRecognitionSupported()) {
       setHint("Voice input isn't supported here — try Safari or Chrome on your phone.");
       return;
     }
+    speechQueueRef.current?.stop();
+    speechQueueRef.current = null;
+    stopSpeaking();
     unlockAudioForPlayback();
     pttActiveRef.current = true;
     setPttHolding(true);
     setTranscript("");
+    setResponse("");
     setState("listening");
 
     startListening(
@@ -342,7 +346,7 @@ export default function VoiceMode() {
         onInterim: (t) => setTranscript(t),
         onFinal: () => {},
         onError: (error) => {
-          if (error !== "aborted") setHint(`Mic: ${error}`);
+          if (error !== "aborted" && error !== "no-speech") setHint(`Mic: ${error}`);
         },
         onEnd: () => {},
       },
@@ -544,17 +548,23 @@ export default function VoiceMode() {
               className={`vm-ptt-btn ${pttHolding ? "is-holding" : ""}`}
               aria-label="Hold to talk"
               onPointerDown={(e) => {
+                if (e.button !== 0 && e.pointerType === "mouse") return;
                 e.preventDefault();
-                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                e.currentTarget.setPointerCapture(e.pointerId);
                 startPtt();
               }}
               onPointerUp={(e) => {
                 e.preventDefault();
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }
                 endPtt();
               }}
-              onPointerCancel={endPtt}
-              onPointerLeave={(e) => {
-                if (pttHolding) endPtt();
+              onPointerCancel={(e) => {
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }
+                endPtt();
               }}
             >
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

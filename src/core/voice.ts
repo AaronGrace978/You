@@ -62,6 +62,9 @@ export interface ListeningOptions {
   ptt?: boolean;
 }
 
+/** Committed transcript across PTT recognition restarts within one hold. */
+let pttCommitted = "";
+
 export function collapseRepeatedSpeech(text: string): string {
   let clean = text.trim().replace(/\s+/g, " ");
   if (!clean) return "";
@@ -82,16 +85,21 @@ export function collapseRepeatedSpeech(text: string): string {
   return clean;
 }
 
-/** Build live display text — finalized segments plus any interim tail from this event. */
-function buildLiveTranscript(finalized: string, event: any): string {
-  let interim = "";
-  for (let i = event.resultIndex; i < event.results.length; i++) {
-    const result = event.results[i];
-    if (!result.isFinal) {
-      interim += result[0]?.transcript ?? "";
+/** Compose full transcript from the results array — last interim wins, finals concatenate. */
+function composeFromResults(results: any): string {
+  let finalText = "";
+  let interimText = "";
+
+  for (let i = 0; i < results.length; i++) {
+    const piece = results[i][0]?.transcript ?? "";
+    if (results[i].isFinal) {
+      finalText += piece;
+    } else {
+      interimText = piece;
     }
   }
-  return collapseRepeatedSpeech((finalized + interim).trim());
+
+  return collapseRepeatedSpeech((finalText + interimText).trim());
 }
 
 export function startListening(
@@ -105,18 +113,19 @@ export function startListening(
 
   const ptt = options?.ptt ?? false;
   stopListening();
+  if (ptt) pttCommitted = "";
   const session = listenSession;
-  pttTranscript = "";
+  pttTranscript = ptt ? pttCommitted : "";
   pttSessionActive = ptt;
 
   recognition = new SpeechRecognitionAPI();
-  recognition.continuous = ptt;
+  // continuous=true on mobile Chrome duplicates interim segments — restart manually for PTT.
+  recognition.continuous = false;
   recognition.interimResults = true;
   recognition.lang = "en-US";
   recognition.maxAlternatives = 1;
 
-  let finalizedSegments = "";
-  let lastTranscript = "";
+  let lastTranscript = ptt ? pttCommitted : "";
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let delivered = false;
 
@@ -129,19 +138,18 @@ export function startListening(
     callbacks.onFinal(clean);
   };
 
-  recognition.onresult = (event: any) => {
-    if (session !== listenSession) return;
-
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i];
-      if (result.isFinal) {
-        finalizedSegments += result[0]?.transcript ?? "";
-      }
-    }
-
-    lastTranscript = buildLiveTranscript(finalizedSegments, event);
+  const syncTranscript = (event: any) => {
+    const chunk = composeFromResults(event.results);
+    lastTranscript = ptt
+      ? collapseRepeatedSpeech((pttCommitted + chunk).trim())
+      : chunk;
     pttTranscript = lastTranscript;
     callbacks.onInterim(lastTranscript);
+  };
+
+  recognition.onresult = (event: any) => {
+    if (session !== listenSession) return;
+    syncTranscript(event);
 
     if (!ptt) {
       if (silenceTimer) clearTimeout(silenceTimer);
@@ -161,13 +169,20 @@ export function startListening(
     if (session !== listenSession) return;
     if (silenceTimer) clearTimeout(silenceTimer);
 
-    // Mobile browsers end recognition after silence — keep listening while PTT is held.
     if (ptt && pttSessionActive) {
-      try {
-        recognition.start();
-      } catch {
-        callbacks.onEnd();
+      // Preserve what we heard before the browser ended this recognition cycle.
+      if (lastTranscript) {
+        pttCommitted = lastTranscript;
+        pttTranscript = pttCommitted;
       }
+      window.setTimeout(() => {
+        if (session !== listenSession || !pttSessionActive) return;
+        try {
+          recognition.start();
+        } catch {
+          callbacks.onEnd();
+        }
+      }, 120);
       return;
     }
 
@@ -185,7 +200,8 @@ export function startListening(
 /** End PTT hold — deliver transcript and stop mic. */
 export function endPttCapture(onFinal: (text: string) => void): void {
   pttSessionActive = false;
-  const text = collapseRepeatedSpeech(pttTranscript);
+  const text = collapseRepeatedSpeech(pttTranscript || pttCommitted);
+  pttCommitted = "";
   stopListening();
   pttTranscript = "";
   if (text) onFinal(text);
@@ -194,6 +210,7 @@ export function endPttCapture(onFinal: (text: string) => void): void {
 export function stopListening(): void {
   listenSession++;
   pttSessionActive = false;
+  pttCommitted = "";
   if (recognition) {
     try {
       recognition.abort();
