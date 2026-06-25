@@ -65,6 +65,38 @@ function resolveModel(req: ChatRequest): string {
   return req.model;
 }
 
+/**
+ * Read a streaming response body line-by-line, carrying any partial line across
+ * network chunk boundaries. Crucial: a single chunk often ends mid-line, so a
+ * JSON/SSE object can be split across two reads. Parsing each raw chunk's lines
+ * directly would fail on that fragment and silently drop the token — which is
+ * exactly what surfaces as the model "skipping words" or producing garbled text.
+ * Buffering until a newline (and flushing the tail at the end) keeps every token.
+ */
+async function* streamLines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl = buffer.indexOf("\n");
+      while (nl >= 0) {
+        yield buffer.slice(0, nl);
+        buffer = buffer.slice(nl + 1);
+        nl = buffer.indexOf("\n");
+      }
+    }
+    // Flush any trailing multi-byte char + a final line with no newline.
+    buffer += decoder.decode();
+    if (buffer.length > 0) yield buffer;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export async function chat(req: ChatRequest): Promise<string> {
   switch (req.provider) {
     case "ollama":
@@ -115,25 +147,20 @@ async function streamOllama(
     return data.message?.content || "";
   }
 
-  let full = "";
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-  if (!reader) throw new Error("No response stream");
+  if (!response.body) throw new Error("No response stream");
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n").filter(Boolean)) {
-      try {
-        const json = JSON.parse(line);
-        const token = json.message?.content || "";
-        if (token) {
-          full += token;
-          onToken(token);
-        }
-      } catch {}
-    }
+  let full = "";
+  for await (const line of streamLines(response.body)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const json = JSON.parse(trimmed);
+      const token = json.message?.content || "";
+      if (token) {
+        full += token;
+        onToken(token);
+      }
+    } catch {}
   }
   return full;
 }
@@ -265,27 +292,20 @@ async function chatOpenAI(req: ChatRequest): Promise<string> {
     return data.choices?.[0]?.message?.content || "";
   }
 
-  let full = "";
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-  if (!reader) throw new Error("No response stream");
+  if (!response.body) throw new Error("No response stream");
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n")) {
-      const trimmed = line.replace(/^data: /, "").trim();
-      if (!trimmed || trimmed === "[DONE]") continue;
-      try {
-        const json = JSON.parse(trimmed);
-        const token = json.choices?.[0]?.delta?.content || "";
-        if (token) {
-          full += token;
-          req.onToken!(token);
-        }
-      } catch {}
-    }
+  let full = "";
+  for await (const line of streamLines(response.body)) {
+    const trimmed = line.replace(/^data: /, "").trim();
+    if (!trimmed || trimmed === "[DONE]") continue;
+    try {
+      const json = JSON.parse(trimmed);
+      const token = json.choices?.[0]?.delta?.content || "";
+      if (token) {
+        full += token;
+        req.onToken!(token);
+      }
+    } catch {}
   }
   return full;
 }
@@ -346,29 +366,22 @@ async function chatAnthropic(req: ChatRequest): Promise<string> {
     return data.content?.[0]?.text || "";
   }
 
-  let full = "";
-  const reader = response.body?.getReader();
-  const decoder = new TextDecoder();
-  if (!reader) throw new Error("No response stream");
+  if (!response.body) throw new Error("No response stream");
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split("\n")) {
-      const trimmed = line.replace(/^data: /, "").trim();
-      if (!trimmed || trimmed.startsWith("event:")) continue;
-      try {
-        const json = JSON.parse(trimmed);
-        if (json.type === "content_block_delta") {
-          const token = json.delta?.text || "";
-          if (token) {
-            full += token;
-            req.onToken!(token);
-          }
+  let full = "";
+  for await (const line of streamLines(response.body)) {
+    const trimmed = line.replace(/^data: /, "").trim();
+    if (!trimmed || trimmed.startsWith("event:")) continue;
+    try {
+      const json = JSON.parse(trimmed);
+      if (json.type === "content_block_delta") {
+        const token = json.delta?.text || "";
+        if (token) {
+          full += token;
+          req.onToken!(token);
         }
-      } catch {}
-    }
+      }
+    } catch {}
   }
   return full;
 }

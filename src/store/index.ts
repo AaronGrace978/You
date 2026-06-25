@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { generateResponse, type ConversationMessage } from "../core/conversation";
-import { rememberMessage } from "../core/memory";
+import { rememberMessage, importMemories } from "../core/memory";
 import { normalizeElevenLabsApiKey } from "../core/voice";
 import { applyThemeChrome } from "../core/theme-chrome";
+import type { ParsedJournalMessage } from "../core/journal";
 
 export interface Attachment {
   name: string;
@@ -46,6 +47,8 @@ interface AppState {
   /** Abort the in-flight reply, keeping whatever streamed so far. */
   stopStreaming: () => void;
   clearConversation: () => void;
+  /** Restore a saved journal: merge into the transcript and rebuild memory. */
+  importConversation: (parsed: ParsedJournalMessage[]) => Promise<{ added: number; skipped: number }>;
 
   provider: Provider;
   model: string;
@@ -275,6 +278,35 @@ export const useStore = create<AppState>()(
       clearConversation: () => {
         activeController?.abort();
         set({ messages: [], isStreaming: false, streamingContent: "" });
+      },
+
+      importConversation: async (parsed) => {
+        if (parsed.length === 0) return { added: 0, skipped: 0 };
+
+        // Merge into the visible transcript, de-duplicating by role + content
+        // so re-importing the same (or overlapping) journals stays clean.
+        const existing = get().messages;
+        const seen = new Set(existing.map((m) => `${m.role}\u0000${m.content.trim()}`));
+        const toAdd: Message[] = [];
+        for (const p of parsed) {
+          const key = `${p.role}\u0000${p.content.trim()}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          toAdd.push({ id: uid(), role: p.role, content: p.content, timestamp: p.timestamp });
+        }
+
+        if (toAdd.length > 0) {
+          const merged = [...existing, ...toAdd].sort((a, b) => a.timestamp - b.timestamp);
+          set({ messages: merged, view: "sanctuary", hasSeenLanding: true });
+        }
+
+        return importMemories(
+          toAdd.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            timestamp: m.timestamp,
+          }))
+        );
       },
 
       provider: "ollama",

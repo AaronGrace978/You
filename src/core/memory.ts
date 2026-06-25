@@ -173,6 +173,82 @@ export function rememberMessage(msg: Message): void {
   void indexForSearch(entry);
 }
 
+/**
+ * Rebuild relational memory from imported journal messages so continuity
+ * survives updates and fresh installs. Idempotent: messages already present in
+ * recent memory or the corpus are skipped, so re-importing the same journal
+ * (or overlapping ones) never double-counts themes.
+ */
+export async function importMemories(
+  msgs: { role: "user" | "assistant"; content: string; timestamp: number }[]
+): Promise<{ added: number; skipped: number }> {
+  const seen = new Set<string>();
+  const keyOf = (role: string, content: string) => `${role}\u0000${content.trim()}`;
+  for (const m of state.recentMemories) seen.add(keyOf(m.role, m.content));
+  for (const c of corpusCache) seen.add(keyOf(c.role, c.content));
+
+  let added = 0;
+  let skipped = 0;
+  let earliest = state.firstSeen;
+
+  for (const msg of msgs) {
+    const content = msg.content.trim();
+    if (!content) {
+      skipped++;
+      continue;
+    }
+    const key = keyOf(msg.role, content);
+    if (seen.has(key)) {
+      skipped++;
+      continue;
+    }
+    seen.add(key);
+
+    const ts = msg.timestamp || Date.now();
+    if (ts < earliest) earliest = ts;
+
+    const { emotionalWeight, tags } = analyzeUserContent(content);
+    const entry: MemoryEntry = {
+      content: msg.content,
+      role: msg.role,
+      timestamp: ts,
+      emotionalWeight,
+      tags,
+    };
+
+    state.recentMemories.push(entry);
+    state.interactions++;
+
+    if (msg.role === "assistant") {
+      const opening = extractOpening(msg.content);
+      if (opening) {
+        state.recentOpenings.push(opening);
+        if (state.recentOpenings.length > MAX_OPENINGS) {
+          state.recentOpenings = state.recentOpenings.slice(-MAX_OPENINGS);
+        }
+      }
+    }
+
+    if (state.recentMemories.length > MAX_RECENT) {
+      distillOldMemories();
+    }
+
+    tags.forEach((tag) => {
+      state.themes[tag] = (state.themes[tag] || 0) + 1;
+      state.weightedThemes[tag] = (state.weightedThemes[tag] || 0) + emotionalWeight;
+    });
+
+    await indexForSearch(entry);
+    added++;
+  }
+
+  // Honor that the relationship may have started before the current record.
+  state.firstSeen = earliest;
+
+  saveState();
+  return { added, skipped };
+}
+
 export function pinMemory(text: string): PinnedMemory | null {
   const trimmed = text.trim();
   if (!trimmed) return null;

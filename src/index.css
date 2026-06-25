@@ -486,6 +486,61 @@ select.input-field {
   background: rgb(220 120 120);
 }
 
+/* Transient confirmation after importing a journal */
+.import-note {
+  position: absolute;
+  top: 3.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  max-width: min(90vw, 26rem);
+  text-align: center;
+  padding: 0.55rem 1rem;
+  border-radius: 9999px;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.8125rem;
+  color: rgb(var(--c-text));
+  background: rgb(var(--c-surface) / 0.94);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgb(var(--c-accent) / 0.22);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.28), 0 0 0 1px rgb(var(--c-accent) / 0.05);
+  animation: importNoteIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes importNoteIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Quiet "restore a saved journal" affordance on the empty state */
+.restore-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.8125rem;
+  color: rgb(var(--c-muted));
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: color 0.18s ease, opacity 0.18s ease;
+}
+
+.restore-link:hover {
+  color: rgb(var(--c-accent));
+  opacity: 1;
+}
+
 .msg-user-bubble {
   background: rgb(var(--c-elevated));
   color: rgb(var(--c-text));

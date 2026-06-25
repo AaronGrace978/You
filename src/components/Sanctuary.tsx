@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, lazy, Suspense, useCallback } from "react"
 import { useStore, type Message, type Attachment } from "../store";
 import { unlockAudioForPlayback } from "../core/voice";
 import { enterAndroidImmersive } from "../core/immersive";
+import { parseJournalMarkdown, type ParsedJournalMessage } from "../core/journal";
 import Markdown from "react-markdown";
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
@@ -83,6 +84,7 @@ export default function Sanctuary() {
   const regenerateLast = useStore((s) => s.regenerateLast);
   const stopStreaming = useStore((s) => s.stopStreaming);
   const clearConversation = useStore((s) => s.clearConversation);
+  const importConversation = useStore((s) => s.importConversation);
   const setView = useStore((s) => s.setView);
   const setVoiceMode = useStore((s) => s.setVoiceMode);
   const userName = useStore((s) => s.userName);
@@ -92,10 +94,12 @@ export default function Sanctuary() {
   const [showCamera, setShowCamera] = useState(false);
   const [entered, setEntered] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
+  const [importNote, setImportNote] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const journalInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     useStore.setState({ hasSeenLanding: true });
@@ -186,6 +190,39 @@ export default function Sanctuary() {
     setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleImportJournal = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    e.target.value = "";
+
+    try {
+      let parsed: ParsedJournalMessage[] = [];
+      for (const file of fileList) {
+        const text = await readFileAsText(file);
+        parsed = parsed.concat(parseJournalMarkdown(text, file.lastModified || Date.now()));
+      }
+
+      if (parsed.length === 0) {
+        setImportNote("Couldn't find any messages in that file.");
+      } else {
+        const { added, skipped } = await importConversation(parsed);
+        if (added > 0) {
+          setImportNote(
+            `Welcomed back ${added} message${added === 1 ? "" : "s"}` +
+              (skipped ? ` · ${skipped} already remembered` : "")
+          );
+        } else {
+          setImportNote("Already remembered everything in that journal.");
+        }
+      }
+    } catch {
+      setImportNote("Couldn't read that journal file.");
+    }
+
+    setTimeout(() => setImportNote(null), 4200);
+  };
+
   return (
     <div className={`h-full w-full flex flex-col ${entered ? "opacity-100" : "opacity-0"} transition-opacity duration-700`}>
       {showCamera && (
@@ -227,6 +264,13 @@ export default function Sanctuary() {
               </button>
             </>
           )}
+          <button onClick={() => journalInputRef.current?.click()} className="icon-btn" title="Import a saved journal — restores memory">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </button>
           <button onClick={() => setView("settings")} className="icon-btn" title="Settings">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -235,6 +279,21 @@ export default function Sanctuary() {
           </button>
         </div>
       </header>
+
+      <input
+        ref={journalInputRef}
+        type="file"
+        accept=".md,.markdown,text/markdown,text/plain"
+        multiple
+        onChange={handleImportJournal}
+        className="hidden"
+      />
+
+      {importNote && (
+        <div className="import-note" role="status" aria-live="polite">
+          {importNote}
+        </div>
+      )}
 
       <div
         ref={scrollRef}
@@ -275,6 +334,18 @@ export default function Sanctuary() {
                   </button>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => journalInputRef.current?.click()}
+                className="restore-link"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span>Restore a saved journal</span>
+              </button>
             </div>
           )}
 
