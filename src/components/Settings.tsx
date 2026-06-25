@@ -389,7 +389,7 @@ export default function Settings() {
                       type="password"
                       value={ollamaCloudApiKey}
                       onChange={(e) => setOllamaCloudApiKey(e.target.value)}
-                      placeholder="Optional if proxy has key baked in"
+                      placeholder="Required — paste key from ollama.com/settings/keys"
                       className="input-field"
                       autoComplete="off"
                     />

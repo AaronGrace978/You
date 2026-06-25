@@ -67,11 +67,23 @@ export default {
       return out;
     }
 
-    if (!env.OLLAMA_API_KEY) {
-      return new Response(JSON.stringify({ error: "OLLAMA_API_KEY not configured on worker" }), {
-        status: 500,
-        headers: { ...cors, "Content-Type": "application/json" },
-      });
+    const userAuth = request.headers.get("Authorization")?.trim();
+    const fallbackKey = env.OLLAMA_API_KEY?.trim();
+    const authorization =
+      userAuth ||
+      (fallbackKey ? `Bearer ${fallbackKey}` : "");
+
+    if (!authorization) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Ollama API key required — add your key in You Settings, or configure OLLAMA_API_KEY on the worker.",
+        }),
+        {
+          status: 401,
+          headers: { ...cors, "Content-Type": "application/json" },
+        }
+      );
     }
 
     const targetPath = path.startsWith("api/") ? path : `api/${path || "tags"}`;
@@ -79,7 +91,7 @@ export default {
 
     const headers = new Headers();
     headers.set("Content-Type", request.headers.get("Content-Type") || "application/json");
-    headers.set("Authorization", `Bearer ${env.OLLAMA_API_KEY}`);
+    headers.set("Authorization", authorization.startsWith("Bearer ") ? authorization : `Bearer ${authorization}`);
 
     const res = await fetch(target, {
       method: request.method,
