@@ -23,6 +23,7 @@ export interface ConversationConfig {
   adaptiveLoops?: boolean;
   dinoBuddyMode?: boolean;
   dinoEnergy?: number;
+  signal?: AbortSignal;
 }
 
 function resolveApiKey(cfg: ConversationConfig): string | undefined {
@@ -101,6 +102,7 @@ export async function generateResponse(
     ollamaProxyUrl: cfg.ollamaProxyUrl,
     ollamaCloudApiKey: cfg.ollamaCloudApiKey,
     ollamaCloudUrl: cfg.ollamaCloudUrl,
+    signal: cfg.signal,
   };
 
   const useLoops = cfg.adaptiveLoops !== false;

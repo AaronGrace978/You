@@ -80,6 +80,8 @@ export default function Sanctuary() {
   const isStreaming = useStore((s) => s.isStreaming);
   const streamingContent = useStore((s) => s.streamingContent);
   const sendMessage = useStore((s) => s.sendMessage);
+  const regenerateLast = useStore((s) => s.regenerateLast);
+  const stopStreaming = useStore((s) => s.stopStreaming);
   const clearConversation = useStore((s) => s.clearConversation);
   const setView = useStore((s) => s.setView);
   const setVoiceMode = useStore((s) => s.setVoiceMode);
@@ -89,7 +91,9 @@ export default function Sanctuary() {
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [showCamera, setShowCamera] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,9 +103,23 @@ export default function Sanctuary() {
     return () => clearTimeout(t);
   }, []);
 
+  // Only follow the conversation down when the reader is already at the edge,
+  // so scrolling up to re-read is never yanked away mid-stream.
   useEffect(() => {
+    if (atBottom) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingContent, atBottom]);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setAtBottom(distance < 90);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+    setAtBottom(true);
+  }, []);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -218,7 +236,11 @@ export default function Sanctuary() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 chat-scroll-fade chat-messages">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-4 md:px-6 chat-scroll-fade chat-messages"
+      >
         <div className="max-w-3xl mx-auto py-6 md:py-10 space-y-8 md:space-y-10">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center min-h-[38vh] gap-6 px-2">
@@ -256,8 +278,14 @@ export default function Sanctuary() {
             </div>
           )}
 
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
+          {messages.map((msg, idx) => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              isLastAssistant={msg.role === "assistant" && idx === messages.length - 1}
+              isStreaming={isStreaming}
+              onRegenerate={regenerateLast}
+            />
           ))}
 
           {isStreaming && streamingContent && (
@@ -287,6 +315,26 @@ export default function Sanctuary() {
       </div>
 
       <div className="chat-dock-fixed safe-x pt-2">
+        {(isStreaming || (!atBottom && messages.length > 0)) && (
+          <div className="flex justify-center items-center gap-2 mb-2.5 px-4">
+            {!atBottom && messages.length > 0 && (
+              <button onClick={scrollToBottom} className="scroll-bottom-btn" title="Jump to latest">
+                <span>Latest</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <polyline points="19 12 12 19 5 12" />
+                </svg>
+              </button>
+            )}
+            {isStreaming && (
+              <button onClick={stopStreaming} className="stop-btn" title="Stop generating">
+                <span className="stop-glyph" />
+                <span>Stop</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {pendingAttachments.length > 0 && (
           <div className="px-4 md:px-6 mb-2">
             <div className="max-w-3xl mx-auto">
@@ -403,13 +451,27 @@ export default function Sanctuary() {
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function MessageBubble({
+  message,
+  isLastAssistant,
+  isStreaming,
+  onRegenerate,
+}: {
+  message: Message;
+  isLastAssistant: boolean;
+  isStreaming: boolean;
+  onRegenerate: () => void;
+}) {
   const isUser = message.role === "user";
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
 
   if (isUser) {
     return (
-      <div className="message-appear flex justify-end">
+      <div className="message-appear group flex flex-col items-end">
         <div className="flex flex-col items-end max-w-[85%] md:max-w-[72%]">
           <div className="msg-user-bubble font-body text-[0.9375rem] leading-relaxed">
             {message.image && (
@@ -422,15 +484,19 @@ function MessageBubble({ message }: { message: Message }) {
               ))}
             <p className="whitespace-pre-wrap selectable">{message.content}</p>
           </div>
+          <time className="msg-time mt-1 mr-1">{formatTime(message.timestamp)}</time>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="message-appear">
+    <div className="message-appear group">
       <div className="msg-assistant-block max-w-none">
-        <p className="msg-label">{dinoBuddyMode ? "Dino Buddy" : "You"}</p>
+        <div className="flex items-center gap-2.5 mb-1.5">
+          <p className="msg-label" style={{ marginBottom: 0 }}>{dinoBuddyMode ? "Dino Buddy" : "You"}</p>
+          <time className="msg-time">{formatTime(message.timestamp)}</time>
+        </div>
         {message.image && (
           <img src={message.image} alt="" className="max-w-[280px] rounded-xl mb-3 border border-warm-400/5" />
         )}
@@ -444,7 +510,22 @@ function MessageBubble({ message }: { message: Message }) {
             <Markdown>{message.content}</Markdown>
           </div>
         )}
-        {message.content && <CopyButton text={message.content} />}
+        {message.content && (
+          <div className="flex items-center gap-4 mt-2.5">
+            <CopyButton text={message.content} />
+            {isLastAssistant && !isStreaming && (
+              <button onClick={onRegenerate} className="msg-action" title="Try another reply">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                  <path d="M8 16H3v5" />
+                </svg>
+                Regenerate
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -464,21 +545,17 @@ function CopyButton({ text }: { text: string }) {
   };
 
   return (
-    <button
-      onClick={handleCopy}
-      className="mt-2 flex items-center gap-1.5 font-body text-[11px] text-secondary hover:text-warm-400 transition-colors cursor-pointer opacity-70 hover:opacity-100"
-      title={copied ? "Copied" : "Copy"}
-    >
+    <button onClick={handleCopy} className="msg-action" title={copied ? "Copied" : "Copy"}>
       {copied ? (
         <>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
           Copied
         </>
       ) : (
         <>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>

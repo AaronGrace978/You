@@ -1,4 +1,9 @@
-export const THEME_COLORS = { dark: "#161618", light: "#faf9f5" } as const;
+export const THEME_COLORS = { dark: "#161618", light: "#faf9f5", dawn: "#fdefe6" } as const;
+
+/** Dawn reads as a light surface for OS chrome (status bar icons, form controls). */
+function colorSchemeFor(theme: keyof typeof THEME_COLORS): "dark" | "light" {
+  return theme === "dark" ? "dark" : "light";
+}
 
 /** Chrome Android sometimes ignores theme-color updates — recreate the meta tag. */
 function setThemeColorMeta(color: string): void {
@@ -16,7 +21,7 @@ function setColorSchemeMeta(theme: keyof typeof THEME_COLORS): void {
     meta.name = "color-scheme";
     document.head.appendChild(meta);
   }
-  meta.content = theme === "dark" ? "dark" : "light";
+  meta.content = colorSchemeFor(theme);
 }
 
 /** Keep OS chrome (status bar, overscroll) matched to the in-app theme. */
@@ -25,7 +30,7 @@ export function applyThemeChrome(theme: keyof typeof THEME_COLORS): void {
   const root = document.documentElement;
 
   root.setAttribute("data-theme", theme);
-  root.style.colorScheme = theme;
+  root.style.colorScheme = colorSchemeFor(theme);
   root.style.backgroundColor = color;
   document.body.style.backgroundColor = color;
 

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { generateResponse } from "../core/conversation";
+import { generateResponse, type ConversationMessage } from "../core/conversation";
 import { rememberMessage } from "../core/memory";
 import { normalizeElevenLabsApiKey } from "../core/voice";
 import { applyThemeChrome } from "../core/theme-chrome";
@@ -23,7 +23,7 @@ export interface Message {
 
 export type Provider = "ollama" | "ollama-cloud" | "openai" | "anthropic";
 export type View = "landing" | "gateway" | "sanctuary" | "settings" | "guide";
-export type Theme = "dark" | "light";
+export type Theme = "dark" | "light" | "dawn";
 
 interface AppState {
   view: View;
@@ -31,6 +31,7 @@ interface AppState {
 
   theme: Theme;
   toggleTheme: () => void;
+  setTheme: (t: Theme) => void;
 
   /** Hide on-screen system navigation via immersive fullscreen where supported. */
   immersiveNav: boolean;
@@ -40,6 +41,10 @@ interface AppState {
   isStreaming: boolean;
   streamingContent: string;
   sendMessage: (content: string, image?: string, attachments?: Attachment[]) => Promise<void>;
+  /** Drop the latest reply and generate a fresh one for the same prompt. */
+  regenerateLast: () => Promise<void>;
+  /** Abort the in-flight reply, keeping whatever streamed so far. */
+  stopStreaming: () => void;
   clearConversation: () => void;
 
   provider: Provider;
@@ -102,66 +107,40 @@ const uid = () => crypto.randomUUID();
 
 export const useStore = create<AppState>()(
   persist(
-    (set, get) => ({
-      view: "landing",
-      setView: (view) => set({ view }),
+    (set, get) => {
+      // Tracks the in-flight reply so it can be aborted by the Stop button.
+      let activeController: AbortController | null = null;
 
-      theme: "dark",
-      toggleTheme: () =>
-        set((s) => {
-          const next = s.theme === "dark" ? "light" : "dark";
-          applyThemeChrome(next);
-          return { theme: next };
-        }),
-
-      immersiveNav: false,
-      setImmersiveNav: (immersiveNav) => set({ immersiveNav }),
-
-      messages: [],
-      isStreaming: false,
-      streamingContent: "",
-
-      sendMessage: async (content: string, image?: string, attachments?: Attachment[]) => {
+      const buildConfig = (signal: AbortSignal) => {
         const state = get();
-        const userMsg: Message = {
-          id: uid(),
-          role: "user",
-          content,
-          timestamp: Date.now(),
-          image,
-          attachments,
+        return {
+          provider: state.provider,
+          model: state.model || getDefaultModel(state.provider),
+          ollamaVisionModel: state.ollamaVisionModel,
+          apiKey: state.apiKey,
+          ollamaUrl: state.ollamaUrl || "http://localhost:11434",
+          ollamaProxyUrl: state.ollamaProxyUrl,
+          ollamaCloudApiKey: state.ollamaCloudApiKey,
+          ollamaCloudUrl: state.ollamaCloudUrl,
+          userName: state.userName,
+          adaptiveLoops: state.adaptiveLoops,
+          dinoBuddyMode: state.dinoBuddyMode,
+          dinoEnergy: state.dinoEnergy,
+          signal,
         };
+      };
 
-        set((s) => ({ messages: [...s.messages, userMsg] }));
-        rememberMessage(userMsg);
+      // Shared generation pass — used by both sendMessage and regenerateLast.
+      const streamAssistant = async (history: ConversationMessage[]) => {
+        const controller = new AbortController();
+        activeController = controller;
         set({ isStreaming: true, streamingContent: "" });
 
         try {
-          const history = [...get().messages].map((m) => ({
-            role: m.role,
-            content: m.content,
-            image: m.image,
-          }));
-
           const response = await generateResponse(
             history,
-            {
-              provider: state.provider,
-              model: state.model || getDefaultModel(state.provider),
-              ollamaVisionModel: state.ollamaVisionModel,
-              apiKey: state.apiKey,
-              ollamaUrl: state.ollamaUrl || "http://localhost:11434",
-              ollamaProxyUrl: state.ollamaProxyUrl,
-              ollamaCloudApiKey: state.ollamaCloudApiKey,
-              ollamaCloudUrl: state.ollamaCloudUrl,
-              userName: state.userName,
-              adaptiveLoops: state.adaptiveLoops,
-              dinoBuddyMode: state.dinoBuddyMode,
-              dinoEnergy: state.dinoEnergy,
-            },
-            (token) => {
-              set((s) => ({ streamingContent: s.streamingContent + token }));
-            }
+            buildConfig(controller.signal),
+            (token) => set((s) => ({ streamingContent: s.streamingContent + token }))
           );
 
           const assistantMsg: Message = {
@@ -180,21 +159,123 @@ export const useStore = create<AppState>()(
 
           rememberMessage(assistantMsg);
         } catch (err) {
-          const errorMsg: Message = {
-            id: uid(),
-            role: "assistant",
-            content: `I'm having trouble connecting right now. Please check your settings and try again.\n\n(${err instanceof Error ? err.message : "Unknown error"})`,
-            timestamp: Date.now(),
-          };
-          set((s) => ({
-            messages: [...s.messages, errorMsg],
-            isStreaming: false,
-            streamingContent: "",
-          }));
+          const aborted =
+            controller.signal.aborted ||
+            (err instanceof DOMException && err.name === "AbortError") ||
+            (err instanceof Error && err.name === "AbortError");
+
+          if (aborted) {
+            // Keep whatever streamed before the user pressed Stop.
+            const partial = get().streamingContent.trim();
+            if (partial) {
+              const assistantMsg: Message = {
+                id: uid(),
+                role: "assistant",
+                content: partial,
+                timestamp: Date.now(),
+              };
+              set((s) => ({
+                messages: [...s.messages, assistantMsg],
+                isStreaming: false,
+                streamingContent: "",
+              }));
+              rememberMessage(assistantMsg);
+            } else {
+              set({ isStreaming: false, streamingContent: "" });
+            }
+          } else {
+            const errorMsg: Message = {
+              id: uid(),
+              role: "assistant",
+              content: `I'm having trouble connecting right now. Please check your settings and try again.\n\n(${err instanceof Error ? err.message : "Unknown error"})`,
+              timestamp: Date.now(),
+            };
+            set((s) => ({
+              messages: [...s.messages, errorMsg],
+              isStreaming: false,
+              streamingContent: "",
+            }));
+          }
+        } finally {
+          if (activeController === controller) activeController = null;
         }
+      };
+
+      return {
+      view: "landing",
+      setView: (view) => set({ view }),
+
+      theme: "dark",
+      toggleTheme: () =>
+        set((s) => {
+          // Cycle through the passage: night → day → dawn → night.
+          const order: Theme[] = ["dark", "light", "dawn"];
+          const next = order[(order.indexOf(s.theme) + 1) % order.length];
+          applyThemeChrome(next);
+          return { theme: next };
+        }),
+      setTheme: (next) =>
+        set(() => {
+          applyThemeChrome(next);
+          return { theme: next };
+        }),
+
+      immersiveNav: false,
+      setImmersiveNav: (immersiveNav) => set({ immersiveNav }),
+
+      messages: [],
+      isStreaming: false,
+      streamingContent: "",
+
+      sendMessage: async (content: string, image?: string, attachments?: Attachment[]) => {
+        const userMsg: Message = {
+          id: uid(),
+          role: "user",
+          content,
+          timestamp: Date.now(),
+          image,
+          attachments,
+        };
+
+        set((s) => ({ messages: [...s.messages, userMsg] }));
+        rememberMessage(userMsg);
+
+        const history: ConversationMessage[] = get().messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          image: m.image,
+        }));
+
+        await streamAssistant(history);
       },
 
-      clearConversation: () => set({ messages: [] }),
+      regenerateLast: async () => {
+        if (get().isStreaming) return;
+        const msgs = get().messages;
+        let i = msgs.length - 1;
+        while (i >= 0 && msgs[i].role !== "assistant") i--;
+        if (i < 0) return;
+
+        const trimmed = msgs.slice(0, i);
+        set({ messages: trimmed });
+
+        const history: ConversationMessage[] = trimmed.map((m) => ({
+          role: m.role,
+          content: m.content,
+          image: m.image,
+        }));
+
+        await streamAssistant(history);
+      },
+
+      stopStreaming: () => {
+        activeController?.abort();
+      },
+
+      clearConversation: () => {
+        activeController?.abort();
+        set({ messages: [], isStreaming: false, streamingContent: "" });
+      },
 
       provider: "ollama",
       model: "",
@@ -245,7 +326,8 @@ export const useStore = create<AppState>()(
       setVoiceSeeMode: (voiceSeeMode) => set({ voiceSeeMode }),
 
       hasSeenLanding: false,
-    }),
+      };
+    },
     {
       name: "you-app-state",
       partialize: (state) => ({

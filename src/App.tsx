@@ -7,6 +7,7 @@ import Settings from "./components/Settings";
 import UserGuide from "./components/UserGuide";
 import VoiceMode from "./components/VoiceMode";
 import InstallHint from "./components/InstallHint";
+import AmbientField from "./components/AmbientField";
 import { applyThemeChrome, watchThemeChrome } from "./core/theme-chrome";
 import { initMemoryStore } from "./core/memory";
 import { enterAndroidImmersive, exitAndroidImmersive } from "./core/immersive";
@@ -56,16 +57,8 @@ export default function App() {
       <div className="app-bg" aria-hidden />
       <div className="app-content h-full w-full">
       <InstallHint />
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-60">
-        <div
-          className="orb orb-warm animate-float"
-          style={{ width: 480, height: 480, top: "-12%", right: "-12%" }}
-        />
-        <div
-          className="orb orb-rose animate-float-delayed"
-          style={{ width: 400, height: 400, bottom: "-10%", left: "-10%" }}
-        />
-      </div>
+      <AmbientField theme={theme} />
+      <div className="app-grain" aria-hidden />
 
       <div className="relative z-10 h-full w-full overflow-hidden">
         {view === "landing" && <Landing />}

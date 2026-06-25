@@ -22,6 +22,7 @@ interface ChatRequest {
   ollamaCloudApiKey?: string;
   ollamaCloudUrl?: string;
   onToken?: (token: string) => void;
+  signal?: AbortSignal;
 }
 
 /** Resolve proxy URL — auto-use built-in proxy on GitHub Pages. */
@@ -93,13 +94,15 @@ async function streamOllama(
   url: string,
   body: object,
   onToken?: (t: string) => void,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
+  signal?: AbortSignal
 ): Promise<string> {
   const stream = !!onToken;
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({ ...body, stream }),
+    signal,
   });
 
   if (!response.ok) {
@@ -140,7 +143,9 @@ async function chatOllama(req: ChatRequest): Promise<string> {
   return streamOllama(
     url,
     { model: resolveModel(req), messages: buildOllamaMessages(req.messages) },
-    req.onToken
+    req.onToken,
+    undefined,
+    req.signal
   );
 }
 
@@ -161,7 +166,8 @@ async function chatOllamaCloud(req: ChatRequest): Promise<string> {
     url,
     { model: resolveModel(req), messages: buildOllamaMessages(req.messages) },
     req.onToken,
-    ollamaCloudHeaders(settings)
+    ollamaCloudHeaders(settings),
+    req.signal
   );
 }
 
@@ -246,6 +252,7 @@ async function chatOpenAI(req: ChatRequest): Promise<string> {
       max_tokens: 2048,
       stream,
     }),
+    signal: req.signal,
   });
 
   if (!response.ok) {
@@ -326,6 +333,7 @@ async function chatAnthropic(req: ChatRequest): Promise<string> {
       messages,
       stream,
     }),
+    signal: req.signal,
   });
 
   if (!response.ok) {

@@ -26,6 +26,15 @@ import { enterAndroidImmersive, exitAndroidImmersive } from "../core/immersive";
 
 type VoiceState = "ready" | "listening" | "processing" | "speaking" | "error" | "paused";
 
+// A quiet ring of light that circles the orb — varied radii/speeds for depth.
+const ORB_EMBERS = [
+  { r: 132, dur: 26, delay: 0, rev: false },
+  { r: 150, dur: 34, delay: -6, rev: true },
+  { r: 118, dur: 22, delay: -3, rev: false },
+  { r: 158, dur: 40, delay: -12, rev: true },
+  { r: 140, dur: 30, delay: -9, rev: false },
+];
+
 export default function VoiceMode() {
   const setVoiceMode = useStore((s) => s.setVoiceMode);
   const immersiveNav = useStore((s) => s.immersiveNav);
@@ -439,6 +448,27 @@ export default function VoiceMode() {
           aria-label={state === "speaking" ? "Stop speaking" : undefined}
         >
           <div className={`vm-halo ${state === "error" ? "is-error" : ""} ${state === "speaking" ? "is-speaking" : ""}`} />
+
+          <div
+            className={`vm-embers ${
+              state === "speaking" ? "is-speaking" : state === "listening" ? "is-listening" : state === "paused" ? "is-paused" : ""
+            }`}
+            aria-hidden
+          >
+            {ORB_EMBERS.map((e, i) => (
+              <span
+                key={i}
+                className="vm-ember"
+                style={{
+                  animationDuration: `${e.dur}s`,
+                  animationDelay: `${e.delay}s`,
+                  animationDirection: e.rev ? "reverse" : "normal",
+                }}
+              >
+                <i style={{ ["--r" as string]: `${e.r}px` }} />
+              </span>
+            ))}
+          </div>
 
           {state === "listening" && !voicePttMode && (
             <>

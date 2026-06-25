@@ -27,6 +27,22 @@ export default function Gateway() {
         exiting ? "opacity-0" : "opacity-100"
       }`}
     >
+      {/* passage indicator — the descent through the night, lighting as you go */}
+      <div className="hidden sm:flex flex-col items-center gap-3 fixed right-7 top-1/2 -translate-y-1/2 z-20" aria-hidden>
+        {[1, 2, 3, 4].map((p) => (
+          <span
+            key={p}
+            className="rounded-full transition-all duration-700"
+            style={{
+              width: phase >= p ? 7 : 5,
+              height: phase >= p ? 7 : 5,
+              background: phase >= p ? "rgb(var(--c-accent) / 0.8)" : "rgb(var(--c-accent) / 0.18)",
+              boxShadow: phase >= p ? "0 0 10px rgb(var(--c-accent) / 0.5)" : "none",
+            }}
+          />
+        ))}
+      </div>
+
       <div className="min-h-full flex items-center justify-center">
         <div className="max-w-2xl mx-auto px-6 sm:px-8 py-16 flex flex-col items-center gap-8 sm:gap-12">
         {/* epigraph */}
@@ -47,9 +63,10 @@ export default function Gateway() {
 
         {/* divider */}
         <div
-          className={`h-px w-16 bg-warm-400/20 transition-all duration-700 ${
-            phase >= 2 ? "opacity-100" : "opacity-0"
+          className={`h-px bg-gradient-to-r from-transparent via-warm-400/40 to-transparent transition-all duration-1000 ${
+            phase >= 2 ? "w-20 opacity-100" : "w-0 opacity-0"
           }`}
+          style={{ boxShadow: phase >= 2 ? "0 0 12px rgb(var(--c-accent) / 0.3)" : "none" }}
         />
 
         {/* creator story */}

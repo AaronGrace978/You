@@ -32,6 +32,21 @@
   --shadow-input: 0 4px 24px rgb(0 0 0 / 0.08), 0 0 0 1px rgb(var(--c-border) / 0.08);
 }
 
+/* Dawn — first light. The passage out of the night: warm cream, rose-gold. */
+[data-theme="dawn"] {
+  --c-deep: 253 239 230;
+  --c-surface: 255 250 246;
+  --c-elevated: 250 232 221;
+  --c-text: 46 30 26;
+  --c-muted: 140 106 92;
+  --c-accent: 184 92 48;
+  --c-border: 60 30 20;
+  --orb-warm: rgba(214, 130, 76, 0.06);
+  --orb-rose: rgba(206, 116, 120, 0.05);
+  --shadow-soft: 0 2px 14px rgb(120 60 30 / 0.08);
+  --shadow-input: 0 4px 24px rgb(120 60 30 / 0.1), 0 0 0 1px rgb(var(--c-border) / 0.08);
+}
+
 @layer base {
   * {
     margin: 0;
@@ -56,7 +71,8 @@
     color-scheme: dark;
   }
 
-  html[data-theme="light"] {
+  html[data-theme="light"],
+  html[data-theme="dawn"] {
     color-scheme: light;
   }
 
@@ -188,10 +204,24 @@ input, select {
   background: rgb(var(--c-accent) / 0.3);
 }
 
-::-webkit-scrollbar { width: 4px; }
+/* Keyboard focus — visible, on-brand ring (mouse clicks stay clean via :focus-visible) */
+:focus-visible {
+  outline: 2px solid rgb(var(--c-accent) / 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgb(var(--c-accent) / 0.2); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-accent) / 0.35); }
+::-webkit-scrollbar-thumb { background: rgb(var(--c-accent) / 0.18); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-accent) / 0.38); }
+* { scrollbar-width: thin; scrollbar-color: rgb(var(--c-accent) / 0.22) transparent; }
 
 /* ===== THEME CLASSES (unlayered = highest priority) ===== */
 
@@ -274,7 +304,8 @@ select.input-field {
   border-bottom: 1px solid rgb(var(--c-border) / 0.06);
 }
 
-[data-theme="light"] .chat-header {
+[data-theme="light"] .chat-header,
+[data-theme="dawn"] .chat-header {
   background: rgb(var(--c-deep) / 0.85);
 }
 
@@ -293,7 +324,8 @@ select.input-field {
     0 0 0 1px rgb(var(--c-accent) / 0.12);
 }
 
-[data-theme="light"] .chat-input-wrap:focus-within {
+[data-theme="light"] .chat-input-wrap:focus-within,
+[data-theme="dawn"] .chat-input-wrap:focus-within {
   box-shadow:
     0 4px 28px rgb(0 0 0 / 0.06),
     0 0 0 1px rgb(var(--c-accent) / 0.2);
@@ -350,8 +382,108 @@ select.input-field {
 
 .suggestion-chip:hover {
   background: rgb(var(--c-elevated));
-  border-color: rgb(var(--c-accent) / 0.2);
+  border-color: rgb(var(--c-accent) / 0.28);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18), 0 0 0 1px rgb(var(--c-accent) / 0.06);
+}
+
+.suggestion-chip:active {
+  transform: translateY(0);
+}
+
+/* Floating "jump to latest" pill — appears when scrolled away from the newest message */
+.scroll-bottom-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.8rem;
+  border-radius: 9999px;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.75rem;
+  color: rgb(var(--c-text));
+  background: rgb(var(--c-surface) / 0.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(var(--c-border) / 0.1);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.28);
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.25s ease, background 0.2s ease;
+}
+
+.scroll-bottom-btn:hover {
+  background: rgb(var(--c-elevated));
   transform: translateY(-1px);
+}
+
+.scroll-bottom-btn svg {
+  color: rgb(var(--c-accent));
+}
+
+/* Inline action row under an assistant message (copy / regenerate) */
+.msg-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 11px;
+  color: rgb(var(--c-muted));
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.msg-action:hover {
+  opacity: 1;
+  color: rgb(var(--c-accent));
+}
+
+/* Timestamp that fades in on message hover */
+.msg-time {
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: rgb(var(--c-muted));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.group:hover .msg-time,
+.msg-row:hover .msg-time {
+  opacity: 0.7;
+}
+
+/* Stop-generation button while a reply is streaming */
+.stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 9999px;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.75rem;
+  color: rgb(var(--c-text));
+  background: rgb(var(--c-surface) / 0.92);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(var(--c-border) / 0.12);
+  box-shadow: 0 6px 22px rgb(0 0 0 / 0.24);
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.stop-btn:hover {
+  border-color: rgb(220 110 110 / 0.4);
+  color: rgb(220 120 120);
+  transform: translateY(-1px);
+}
+
+.stop-btn .stop-glyph {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  background: rgb(220 120 120);
 }
 
 .msg-user-bubble {
@@ -361,7 +493,8 @@ select.input-field {
   padding: 0.75rem 1.125rem;
 }
 
-[data-theme="light"] .msg-user-bubble {
+[data-theme="light"] .msg-user-bubble,
+[data-theme="dawn"] .msg-user-bubble {
   background: rgb(var(--c-elevated));
 }
 
@@ -465,6 +598,62 @@ select.input-field {
 
 .animate-blink {
   animation: blink 0.8s ease-in-out infinite;
+}
+
+/* Landing — a soft light that breathes behind the word "You" */
+.landing-core {
+  position: absolute;
+  width: min(70vw, 540px);
+  height: min(70vw, 540px);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(var(--c-accent) / 0.22) 0%,
+    rgb(var(--c-accent) / 0.08) 32%,
+    transparent 68%
+  );
+  filter: blur(28px);
+  pointer-events: none;
+  animation: landingCore 7s ease-in-out infinite;
+}
+
+[data-theme="light"] .landing-core,
+[data-theme="dawn"] .landing-core {
+  background: radial-gradient(
+    circle,
+    rgb(var(--c-accent) / 0.16) 0%,
+    rgb(var(--c-accent) / 0.05) 32%,
+    transparent 68%
+  );
+}
+
+@keyframes landingCore {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+/* The word resolves out of the dark — blur to focus */
+.title-resolve {
+  animation: titleResolve 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes titleResolve {
+  0% { opacity: 0; filter: blur(16px); transform: translateY(14px) scale(0.97); letter-spacing: 0.2em; }
+  100% { opacity: 1; filter: blur(0); transform: translateY(0) scale(1); letter-spacing: 0.04em; }
+}
+
+/* A thin current of light that rises beneath the word */
+.river-line {
+  position: absolute;
+  width: 1px;
+  background: linear-gradient(to top, transparent, rgb(var(--c-accent) / 0.5), transparent);
+  animation: riverRise 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes riverRise {
+  0%, 100% { opacity: 0; transform: translateY(20px) scaleY(0.6); }
+  50% { opacity: 1; transform: translateY(-10px) scaleY(1); }
 }
 
 /* ===== MOBILE & ACCESSIBILITY ===== */
@@ -583,6 +772,33 @@ select.input-field {
   position: relative;
   z-index: 1;
   box-sizing: border-box;
+}
+
+/* Living backdrop — soft river of light drifting behind everything. */
+.ambient-field {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+/* Faint film grain — adds depth and kills gradient banding. Static; cheap. */
+.app-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+[data-theme="light"] .app-grain {
+  opacity: 0.22;
 }
 
 /* Larger, finger-friendly tap targets on touch devices. */
@@ -1013,7 +1229,8 @@ select.input-field {
   color: rgb(180 95 45);
   border: 1px solid rgb(255 140 60 / 0.35);
 }
-[data-theme="light"] .settings-toggle-dino {
+[data-theme="light"] .settings-toggle-dino,
+[data-theme="dawn"] .settings-toggle-dino {
   color: rgb(130 70 28);
 }
 
@@ -1026,6 +1243,52 @@ select.input-field {
 
 .vm-orb[role="button"] {
   cursor: pointer;
+}
+
+/* Orbiting embers — a quiet ring of light circling the orb, reactive to state */
+.vm-embers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 0.6s ease, transform 0.6s ease, filter 0.6s ease;
+}
+.vm-embers.is-listening {
+  opacity: 0.9;
+}
+.vm-embers.is-speaking {
+  opacity: 1;
+  transform: scale(1.06);
+  filter: brightness(1.25);
+}
+.vm-embers.is-paused {
+  opacity: 0.3;
+}
+.vm-embers.is-paused .vm-ember {
+  animation-play-state: paused;
+}
+.vm-ember {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  animation-name: vmEmberOrbit;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.vm-ember i {
+  position: absolute;
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgb(var(--c-accent) / 0.7) 55%, transparent 78%);
+  box-shadow: 0 0 9px rgb(var(--c-accent) / 0.6);
+  transform: translate(-50%, -50%) translateX(var(--r, 150px));
+}
+@keyframes vmEmberOrbit {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes vmDrift1 {

@@ -20,7 +20,7 @@ import { isAndroid } from "../core/ai-config";
 export default function Settings() {
   const setView = useStore((s) => s.setView);
   const theme = useStore((s) => s.theme);
-  const toggleTheme = useStore((s) => s.toggleTheme);
+  const setTheme = useStore((s) => s.setTheme);
   const immersiveNav = useStore((s) => s.immersiveNav);
   const setImmersiveNav = useStore((s) => s.setImmersiveNav);
   const provider = useStore((s) => s.provider);
@@ -696,26 +696,31 @@ export default function Settings() {
           <Section title="Appearance" icon={<PaletteIcon />}>
             <div className="settings-card">
               <Field label="Theme">
-                <div className="flex gap-2">
-                  {(["dark", "light"] as const).map((t) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: "dark", label: "Night", glyph: "☾", sub: "Deep & intimate" },
+                    { id: "dawn", label: "Dawn", glyph: "✶", sub: "First light" },
+                    { id: "light", label: "Day", glyph: "○", sub: "Soft & bright" },
+                  ] as const).map((t) => (
                     <button
-                      key={t}
-                      onClick={() => { if (theme !== t) toggleTheme(); }}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
+                      key={t.id}
+                      onClick={() => { if (theme !== t.id) setTheme(t.id); }}
+                      className="flex flex-col items-center gap-0.5 px-2 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
                       style={{
-                        background: theme === t
+                        background: theme === t.id
                           ? "rgb(var(--c-accent) / 0.15)"
                           : "rgb(var(--c-elevated) / 0.5)",
-                        color: theme === t
+                        color: theme === t.id
                           ? "rgb(var(--c-accent))"
                           : "rgb(var(--c-muted))",
-                        border: theme === t
+                        border: theme === t.id
                           ? "1px solid rgb(var(--c-accent) / 0.3)"
                           : "1px solid rgb(var(--c-accent) / 0.05)",
                       }}
                     >
-                      <span className="text-sm">{t === "dark" ? "◑" : "○"}</span>
-                      {t === "dark" ? "Dark" : "Light"}
+                      <span className="text-base leading-none mb-0.5">{t.glyph}</span>
+                      <span className="font-medium">{t.label}</span>
+                      <span className="text-[10px] opacity-70">{t.sub}</span>
                     </button>
                   ))}
                 </div>

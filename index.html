@@ -25,10 +25,14 @@
       html[data-theme="light"] body {
         background-color: #faf9f5;
       }
+      html[data-theme="dawn"],
+      html[data-theme="dawn"] body {
+        background-color: #fdefe6;
+      }
     </style>
     <script>
       (function () {
-        var COLORS = { dark: "#161618", light: "#faf9f5" };
+        var COLORS = { dark: "#161618", light: "#faf9f5", dawn: "#fdefe6" };
         var theme = "dark";
         try {
           var raw = localStorage.getItem("you-app-state");
