@@ -25,11 +25,15 @@ interface ChatRequest {
   signal?: AbortSignal;
 }
 
+export function normalizeProxyUrl(raw: string): string {
+  return raw.trim().replace(/\/+$/, "").replace(/\/api$/i, "");
+}
+
 /** Resolve proxy URL — auto-use built-in proxy on GitHub Pages. */
 export function effectiveProxyUrl(settings: OllamaCloudSettings): string {
-  const custom = settings.ollamaProxyUrl.trim();
-  if (custom) return custom.replace(/\/$/, "");
-  if (isHostedApp()) return OLLAMA_PROXY_URL;
+  const custom = normalizeProxyUrl(settings.ollamaProxyUrl);
+  if (custom) return custom;
+  if (isHostedApp()) return normalizeProxyUrl(OLLAMA_PROXY_URL);
   return "";
 }
 

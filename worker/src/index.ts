@@ -15,6 +15,10 @@ const CORS_HEADERS = (origin: string | null) => ({
   "Access-Control-Allow-Headers": "Content-Type, Authorization, xi-api-key",
 });
 
+function stripSecretPathPrefix(path: string): string {
+  return path.replace(/^s_[^/]+\/?/, "");
+}
+
 export default {
   async fetch(request: Request, env: { OLLAMA_API_KEY?: string }): Promise<Response> {
     const origin = request.headers.get("Origin");
@@ -29,7 +33,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    const path = url.pathname.replace(/^\/+/, "");
+    const path = stripSecretPathPrefix(url.pathname.replace(/^\/+/, ""));
 
     // ElevenLabs TTS proxy — user's xi-api-key is forwarded from the browser (CORS bypass).
     if (path.startsWith("elevenlabs/")) {
