@@ -23,6 +23,8 @@ export interface ConversationConfig {
   adaptiveLoops?: boolean;
   dinoBuddyMode?: boolean;
   dinoEnergy?: number;
+  gameBuddyMode?: boolean;
+  gameBuddyHype?: number;
   signal?: AbortSignal;
 }
 
@@ -90,6 +92,8 @@ export async function generateResponse(
   const systemPrompt = buildSystemPrompt(cfg.userName, relationalContext, adaptation, {
     dinoBuddyMode: cfg.dinoBuddyMode,
     dinoEnergy: cfg.dinoEnergy,
+    gameBuddyMode: cfg.gameBuddyMode,
+    gameBuddyHype: cfg.gameBuddyHype,
   });
 
   const chatReq = {

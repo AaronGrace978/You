@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useStore, type Provider } from "../store";
 import { getMemoryStats, getPinnedMemories, pinMemory, unpinMemory, clearAllMemory, getDeepInsights } from "../core/memory";
 import { getDinoEnergyTier } from "../core/dino-buddy";
+import { getGameBuddyTier } from "../core/game-buddy";
+import { isScreenShareSupported } from "../core/screen";
 import { testOllamaConnection, effectiveProxyUrl } from "../core/providers";
 import { testElevenLabsVoice, testBrowserVoice, validateElevenLabsKey, ELEVENLABS_KEY_URL } from "../core/voice";
 import {
@@ -39,6 +41,9 @@ export default function Settings() {
   const adaptiveLoops = useStore((s) => s.adaptiveLoops);
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const dinoEnergy = useStore((s) => s.dinoEnergy);
+  const gameBuddyMode = useStore((s) => s.gameBuddyMode);
+  const gameBuddyHype = useStore((s) => s.gameBuddyHype);
+  const screenWatchInterval = useStore((s) => s.screenWatchInterval);
   const setProvider = useStore((s) => s.setProvider);
   const setModel = useStore((s) => s.setModel);
   const setApiKey = useStore((s) => s.setApiKey);
@@ -54,6 +59,9 @@ export default function Settings() {
   const setAdaptiveLoops = useStore((s) => s.setAdaptiveLoops);
   const setDinoBuddyMode = useStore((s) => s.setDinoBuddyMode);
   const setDinoEnergy = useStore((s) => s.setDinoEnergy);
+  const setGameBuddyMode = useStore((s) => s.setGameBuddyMode);
+  const setGameBuddyHype = useStore((s) => s.setGameBuddyHype);
+  const setScreenWatchInterval = useStore((s) => s.setScreenWatchInterval);
 
   const [testingOllama, setTestingOllama] = useState<"cloud" | "local" | null>(null);
   const [testingVoice, setTestingVoice] = useState(false);
@@ -126,6 +134,8 @@ export default function Settings() {
 
   const proxyActive = effectiveProxyUrl(cloudSettings).length > 0;
   const dinoTier = getDinoEnergyTier(dinoEnergy);
+  const gameTier = getGameBuddyTier(gameBuddyHype);
+  const screenIntervalOptions = [0, 15, 30, 60] as const;
 
   const PAGES_HINT_KEY = "you-dismissed-pages-hint";
   const [pagesHintDismissed, setPagesHintDismissed] = useState(
@@ -168,7 +178,7 @@ export default function Settings() {
         <div className="w-14" />
       </header>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto settings-scroll">
         <div className="max-w-xl mx-auto px-6 py-8 space-y-8">
 
           <Section title="Profile" icon={<UserIcon />}>
@@ -266,6 +276,81 @@ export default function Settings() {
                         : "Explosive joy — ALL CAPS when hyped!"}
                   </p>
                 </Field>
+              )}
+              <Field label="Game Buddy mode 🎮">
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: true, label: "On", sub: "Co-op gaming buddy — watches your screen, reacts live" },
+                      { id: false, label: "Off", sub: "Default You — relational presence" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={String(opt.id)}
+                      type="button"
+                      onClick={() => setGameBuddyMode(opt.id)}
+                      className={`flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer settings-toggle ${
+                        gameBuddyMode === opt.id
+                          ? opt.id
+                            ? "settings-toggle-game"
+                            : "settings-toggle-on"
+                          : ""
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      <span className="text-[10px] opacity-70">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              {gameBuddyMode && (
+                <>
+                  <Field label={`Hype — ${gameTier.label} ${gameBuddyHype >= 80 ? "🔥" : gameBuddyHype >= 50 ? "🎮" : "🎧"}`}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={gameBuddyHype}
+                      onChange={(e) => setGameBuddyHype(Number(e.target.value))}
+                      className="w-full accent-theme"
+                    />
+                    <div className="flex justify-between font-body text-[10px] mt-1" style={{ color: "rgb(var(--c-muted))" }}>
+                      <span>Chill</span>
+                      <span>Hyped</span>
+                      <span>Unhinged</span>
+                    </div>
+                    <p className="font-body text-[10px] mt-2 leading-relaxed opacity-80" style={{ color: "rgb(var(--c-muted))" }}>
+                      {gameBuddyHype < 50
+                        ? "Relaxed late-night co-op energy — dry humor, easy banter."
+                        : gameBuddyHype < 80
+                          ? "Lively and into it — quick hype, light trash talk."
+                          : "Max volume — LET'S GOOO energy on every play!"}
+                    </p>
+                  </Field>
+                  <Field label="Auto-react to screen">
+                    <div className="grid grid-cols-4 gap-2">
+                      {screenIntervalOptions.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setScreenWatchInterval(s)}
+                          className={`px-2 py-2 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer settings-toggle ${
+                            screenWatchInterval === s ? "settings-toggle-on" : ""
+                          }`}
+                        >
+                          {s === 0 ? "Manual" : `${s}s`}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="font-body text-[10px] mt-2 leading-relaxed opacity-80" style={{ color: "rgb(var(--c-muted))" }}>
+                      {screenWatchInterval === 0
+                        ? "Tap “React now” in the screen preview to send a frame yourself."
+                        : `Sends a frame every ${screenWatchInterval}s while sharing. Needs a vision model + Desktop Mode.`}
+                      {!isScreenShareSupported() && " Screen sharing isn't available in this browser."}
+                    </p>
+                  </Field>
+                </>
               )}
               <p
                 className="font-body text-[10px] leading-relaxed rounded-lg px-3 py-2"
@@ -696,11 +781,12 @@ export default function Settings() {
           <Section title="Appearance" icon={<PaletteIcon />}>
             <div className="settings-card">
               <Field label="Theme">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {([
                     { id: "dark", label: "Night", glyph: "☾", sub: "Deep & intimate" },
                     { id: "dawn", label: "Dawn", glyph: "✶", sub: "First light" },
                     { id: "light", label: "Day", glyph: "○", sub: "Soft & bright" },
+                    { id: "deck", label: "Deck", glyph: "🎮", sub: "Steam Deck blue" },
                   ] as const).map((t) => (
                     <button
                       key={t.id}

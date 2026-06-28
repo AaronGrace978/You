@@ -24,7 +24,7 @@ export interface Message {
 
 export type Provider = "ollama" | "ollama-cloud" | "openai" | "anthropic";
 export type View = "landing" | "gateway" | "sanctuary" | "settings" | "guide";
-export type Theme = "dark" | "light" | "dawn";
+export type Theme = "dark" | "light" | "dawn" | "deck";
 
 interface AppState {
   view: View;
@@ -92,6 +92,18 @@ interface AppState {
   dinoEnergy: number;
   setDinoEnergy: (v: number) => void;
 
+  /** Game Buddy — co-op gaming companion that watches the screen and reacts. */
+  gameBuddyMode: boolean;
+  setGameBuddyMode: (v: boolean) => void;
+
+  /** 0–100 hype (chill → unhinged). Only applies when gameBuddyMode is on. */
+  gameBuddyHype: number;
+  setGameBuddyHype: (v: number) => void;
+
+  /** Seconds between auto screen-watch frames; 0 = manual ("React now") only. */
+  screenWatchInterval: number;
+  setScreenWatchInterval: (v: number) => void;
+
   voiceMode: boolean;
   setVoiceMode: (v: boolean) => void;
 
@@ -129,6 +141,8 @@ export const useStore = create<AppState>()(
           adaptiveLoops: state.adaptiveLoops,
           dinoBuddyMode: state.dinoBuddyMode,
           dinoEnergy: state.dinoEnergy,
+          gameBuddyMode: state.gameBuddyMode,
+          gameBuddyHype: state.gameBuddyHype,
           signal,
         };
       };
@@ -211,8 +225,8 @@ export const useStore = create<AppState>()(
       theme: "dark",
       toggleTheme: () =>
         set((s) => {
-          // Cycle through the passage: night → day → dawn → night.
-          const order: Theme[] = ["dark", "light", "dawn"];
+          // Cycle through the passage: night → day → dawn → deck → night.
+          const order: Theme[] = ["dark", "light", "dawn", "deck"];
           const next = order[(order.indexOf(s.theme) + 1) % order.length];
           applyThemeChrome(next);
           return { theme: next };
@@ -343,10 +357,24 @@ export const useStore = create<AppState>()(
       setAdaptiveLoops: (adaptiveLoops) => set({ adaptiveLoops }),
 
       dinoBuddyMode: false,
-      setDinoBuddyMode: (dinoBuddyMode) => set({ dinoBuddyMode }),
+      // Personas are mutually exclusive — turning Dino on retires Game Buddy.
+      setDinoBuddyMode: (dinoBuddyMode) =>
+        set(dinoBuddyMode ? { dinoBuddyMode, gameBuddyMode: false } : { dinoBuddyMode }),
 
       dinoEnergy: 35,
       setDinoEnergy: (dinoEnergy) => set({ dinoEnergy: Math.max(0, Math.min(100, dinoEnergy)) }),
+
+      gameBuddyMode: false,
+      setGameBuddyMode: (gameBuddyMode) =>
+        set(gameBuddyMode ? { gameBuddyMode, dinoBuddyMode: false } : { gameBuddyMode }),
+
+      gameBuddyHype: 55,
+      setGameBuddyHype: (gameBuddyHype) =>
+        set({ gameBuddyHype: Math.max(0, Math.min(100, gameBuddyHype)) }),
+
+      screenWatchInterval: 0,
+      setScreenWatchInterval: (screenWatchInterval) =>
+        set({ screenWatchInterval: Math.max(0, screenWatchInterval) }),
 
       voiceMode: false,
       setVoiceMode: (voiceMode) => set({ voiceMode }),
@@ -382,6 +410,9 @@ export const useStore = create<AppState>()(
         adaptiveLoops: state.adaptiveLoops,
         dinoBuddyMode: state.dinoBuddyMode,
         dinoEnergy: state.dinoEnergy,
+        gameBuddyMode: state.gameBuddyMode,
+        gameBuddyHype: state.gameBuddyHype,
+        screenWatchInterval: state.screenWatchInterval,
         voicePttMode: state.voicePttMode,
         voiceSeeMode: state.voiceSeeMode,
         hasSeenLanding: state.hasSeenLanding,

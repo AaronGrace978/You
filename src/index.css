@@ -47,6 +47,21 @@
   --shadow-input: 0 4px 24px rgb(120 60 30 / 0.1), 0 0 0 1px rgb(var(--c-border) / 0.08);
 }
 
+/* Deck — Steam Deck handheld vibe: deep navy carbon, electric Steam blue. */
+[data-theme="deck"] {
+  --c-deep: 13 17 23;
+  --c-surface: 22 27 35;
+  --c-elevated: 32 39 50;
+  --c-text: 233 240 248;
+  --c-muted: 142 156 174;
+  --c-accent: 56 169 240;
+  --c-border: 120 170 222;
+  --orb-warm: rgba(56, 169, 240, 0.07);
+  --orb-rose: rgba(118, 132, 255, 0.05);
+  --shadow-soft: 0 2px 14px rgb(0 0 0 / 0.4);
+  --shadow-input: 0 4px 26px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(var(--c-border) / 0.1);
+}
+
 @layer base {
   * {
     margin: 0;
@@ -67,7 +82,8 @@
     color-scheme: dark light;
   }
 
-  html[data-theme="dark"] {
+  html[data-theme="dark"],
+  html[data-theme="deck"] {
     color-scheme: dark;
   }
 
@@ -809,7 +825,9 @@ select.input-field {
 }
 
 [data-theme="dark"] .chat-dock,
-[data-theme="dark"] .chat-dock-fixed {
+[data-theme="dark"] .chat-dock-fixed,
+[data-theme="deck"] .chat-dock,
+[data-theme="deck"] .chat-dock-fixed {
   background: linear-gradient(to top, rgb(var(--c-deep)) 78%, rgb(var(--c-deep) / 0));
 }
 
@@ -821,6 +839,18 @@ select.input-field {
 
 .chat-messages {
   padding-bottom: var(--dock-reserve, 9rem);
+  /* Flex children need an explicit min-height to actually scroll instead of
+     growing past the viewport (classic flexbox overflow trap). */
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Settings is a long form — same momentum + contained overscroll as the chat. */
+.settings-scroll {
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .app-content {
@@ -1289,6 +1319,16 @@ select.input-field {
   color: rgb(130 70 28);
 }
 
+.settings-toggle-game {
+  background: rgb(56 169 240 / 0.16);
+  color: rgb(56 169 240);
+  border: 1px solid rgb(56 169 240 / 0.4);
+}
+[data-theme="light"] .settings-toggle-game,
+[data-theme="dawn"] .settings-toggle-game {
+  color: rgb(30 110 175);
+}
+
 .accent-theme {
   accent-color: rgb(var(--c-accent));
 }
@@ -1376,6 +1416,177 @@ select.input-field {
 @keyframes vmDot {
   0%, 100% { opacity: 0.25; }
   50% { opacity: 1; }
+}
+
+/* ===== GAME BUDDY — screen-watch picture-in-picture ===== */
+
+.screen-watch-pip {
+  position: fixed;
+  left: max(0.75rem, env(safe-area-inset-left));
+  bottom: calc(var(--dock-reserve, 9rem) + 0.25rem);
+  z-index: 30;
+  width: clamp(11rem, 24vw, 15rem);
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgb(var(--c-surface) / 0.95);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgb(var(--c-accent) / 0.4);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(var(--c-accent) / 0.12);
+  animation: messageIn 0.35s ease-out forwards;
+}
+
+.screen-watch-video-wrap {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: rgb(var(--c-deep));
+  overflow: hidden;
+}
+
+.screen-watch-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.screen-watch-live {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgb(0 0 0 / 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.screen-watch-live .dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: rgb(86 200 120);
+  box-shadow: 0 0 8px rgb(86 200 120 / 0.9);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+.screen-watch-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.55rem;
+}
+
+.screen-watch-react {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.6rem;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: rgb(var(--c-deep));
+  background: rgb(var(--c-accent));
+  border: none;
+  transition: filter 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.screen-watch-react:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.screen-watch-react:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.screen-watch-react:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.screen-watch-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  color: rgb(var(--c-muted));
+  background: rgb(var(--c-elevated) / 0.7);
+  border: 1px solid rgb(var(--c-border) / 0.15);
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.screen-watch-mini:hover {
+  color: rgb(var(--c-text));
+  background: rgb(var(--c-elevated));
+}
+.screen-watch-mini.is-active {
+  color: rgb(var(--c-accent));
+  border-color: rgb(var(--c-accent) / 0.4);
+  background: rgb(var(--c-accent) / 0.14);
+}
+.screen-watch-mini.is-stop {
+  color: rgb(220 120 120);
+  border-color: rgb(220 110 110 / 0.35);
+}
+
+.screen-watch-error {
+  padding: 0.6rem 0.7rem;
+  font-family: "Inter", "Karla", system-ui, sans-serif;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: rgb(var(--c-muted));
+}
+
+/* Icon button variant that lights up while screen-watch is active */
+.icon-btn.is-watching {
+  color: rgb(var(--c-accent));
+  background: rgb(var(--c-accent) / 0.14);
+}
+
+/* ===== STEAM DECK & LANDSCAPE HANDHELD POLISH =====
+   The Deck's 1280×800 display is short and wide. Tighten vertical rhythm,
+   shrink the dock reserve, and keep the PiP from eating the play area. */
+@media (orientation: landscape) and (max-height: 860px) and (min-width: 1000px) {
+  .chat-messages {
+    --dock-reserve: 7.5rem;
+  }
+
+  .chat-header {
+    min-height: 2.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .vm-status {
+    font-size: clamp(1.4rem, 4vw, 2rem);
+  }
+
+  /* Roomier tap targets sit better with the Deck's touchscreen + trackpads. */
+  .suggestion-chip {
+    padding: 0.55rem 1.1rem;
+    font-size: 0.875rem;
+  }
+
+  .screen-watch-pip {
+    width: clamp(10rem, 18vw, 13rem);
+  }
 }
 
 /* Respect users who prefer reduced motion — calm the orbs and animations. */

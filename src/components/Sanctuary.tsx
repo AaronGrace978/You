@@ -3,10 +3,21 @@ import { useStore, type Message, type Attachment } from "../store";
 import { unlockAudioForPlayback } from "../core/voice";
 import { enterAndroidImmersive } from "../core/immersive";
 import { parseJournalMarkdown, type ParsedJournalMessage } from "../core/journal";
+import { isScreenShareSupported } from "../core/screen";
 import Markdown from "react-markdown";
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
 const CameraCapture = lazy(() => import("./CameraCapture"));
+const ScreenWatch = lazy(() => import("./ScreenWatch"));
+
+/** Prompt that rides along with each screen frame sent to Game Buddy. */
+const SCREEN_WATCH_PROMPT = "Here's my screen right now — react to what's happening. 🎮";
+
+type PersonaKind = "you" | "dino" | "game";
+
+function personaLabel(persona: PersonaKind): string {
+  return persona === "game" ? "Game Buddy" : persona === "dino" ? "Dino Buddy" : "You";
+}
 
 const ACCEPTED_TYPES =
   "image/*,.pdf,.txt,.md,.csv,.json,.xml,.html,.log,.py,.js,.ts,.jsx,.tsx,.c,.cpp,.java,.rs,.go";
@@ -21,6 +32,12 @@ const SUGGESTIONS_DINO = [
   "What's on your mind?",
   "Tell me about your day",
   "I just need to vent",
+];
+
+const SUGGESTIONS_GAME = [
+  "What do you think of this game?",
+  "Give me a quick tip",
+  "Hype me up",
 ];
 
 function classifyFile(file: File): Attachment["type"] {
@@ -45,9 +62,23 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function exportConversation(messages: Message[], userName: string, dinoBuddyMode: boolean) {
+function exportConversation(messages: Message[], userName: string, persona: PersonaKind) {
+  const isDino = persona === "dino";
+  const isGame = persona === "game";
+  const title = isGame
+    ? "# Game Buddy — Session Log 🎮"
+    : isDino
+      ? "# Dino Buddy — Conversation Journal 🦖"
+      : "# You — Conversation Journal";
+  const assistantWho = isGame ? "Game Buddy" : isDino ? "Dino Buddy" : "You (AI)";
+  const closing = isGame
+    ? "*🎮 GG. Catch you next session.*"
+    : isDino
+      ? "*🦖 Thanks for hanging out, bro.*"
+      : "*Whatever you carry, you can set it down here.*";
+
   const lines: string[] = [
-    dinoBuddyMode ? "# Dino Buddy — Conversation Journal 🦖" : "# You — Conversation Journal",
+    title,
     `*Exported ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}*`,
     "",
     "---",
@@ -56,7 +87,7 @@ function exportConversation(messages: Message[], userName: string, dinoBuddyMode
 
   for (const msg of messages) {
     const time = new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-    const who = msg.role === "user" ? (userName || "You") : dinoBuddyMode ? "Dino Buddy" : "You (AI)";
+    const who = msg.role === "user" ? (userName || "You") : assistantWho;
     lines.push(`**${who}** — *${time}*`);
     lines.push("");
     lines.push(msg.content);
@@ -65,7 +96,7 @@ function exportConversation(messages: Message[], userName: string, dinoBuddyMode
     lines.push("");
   }
 
-  lines.push(dinoBuddyMode ? "*🦖 Thanks for hanging out, bro.*" : "*Whatever you carry, you can set it down here.*");
+  lines.push(closing);
 
   const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
@@ -89,9 +120,12 @@ export default function Sanctuary() {
   const setVoiceMode = useStore((s) => s.setVoiceMode);
   const userName = useStore((s) => s.userName);
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
+  const gameBuddyMode = useStore((s) => s.gameBuddyMode);
+  const persona: PersonaKind = gameBuddyMode ? "game" : dinoBuddyMode ? "dino" : "you";
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [showCamera, setShowCamera] = useState(false);
+  const [watching, setWatching] = useState(false);
   const [entered, setEntered] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const [importNote, setImportNote] = useState<string | null>(null);
@@ -151,6 +185,13 @@ export default function Sanctuary() {
       storeAttachments && storeAttachments.length > 0 ? storeAttachments : undefined
     );
   }, [input, pendingAttachments, isStreaming, sendMessage]);
+
+  const handleScreenFrame = useCallback(
+    (dataUrl: string) => {
+      void sendMessage(SCREEN_WATCH_PROMPT, dataUrl);
+    },
+    [sendMessage]
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -239,9 +280,20 @@ export default function Sanctuary() {
           />
         </Suspense>
       )}
+      {watching && (
+        <Suspense fallback={null}>
+          <ScreenWatch
+            onReact={handleScreenFrame}
+            onStop={() => setWatching(false)}
+            isStreaming={isStreaming}
+          />
+        </Suspense>
+      )}
       <header className="chat-header safe-top safe-x relative flex items-center justify-center px-6 py-3.5 min-h-[3.25rem] shrink-0">
         <h2 className="font-display text-[1.0625rem] text-warm-50 tracking-wide pointer-events-none select-none">
-          {dinoBuddyMode ? (
+          {persona === "game" ? (
+            <span>Game Buddy <span className="opacity-90">🎮</span></span>
+          ) : persona === "dino" ? (
             <span>Dino <span className="opacity-90">🦖</span></span>
           ) : (
             "You"
@@ -250,7 +302,7 @@ export default function Sanctuary() {
         <div className="absolute right-4 safe-x flex items-center gap-1">
           {messages.length > 0 && (
             <>
-              <button onClick={() => exportConversation(messages, userName, dinoBuddyMode)} className="icon-btn" title="Export journal">
+              <button onClick={() => exportConversation(messages, userName, persona)} className="icon-btn" title="Export journal">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
@@ -305,22 +357,28 @@ export default function Sanctuary() {
             <div className="flex flex-col items-center justify-center min-h-[38vh] gap-6 px-2">
               <div className="text-center space-y-3">
                 <p className="font-display text-[2rem] md:text-[2.25rem] text-warm-50 leading-tight">
-                  {dinoBuddyMode
+                  {persona === "game"
                     ? userName
-                      ? `Hey ${userName}! 🦖`
-                      : "Hey! 🦖"
-                    : userName
-                      ? `Welcome back, ${userName}`
-                      : "Hello"}
+                      ? `Ready when you are, ${userName} 🎮`
+                      : "Ready to play? 🎮"
+                    : persona === "dino"
+                      ? userName
+                        ? `Hey ${userName}! 🦖`
+                        : "Hey! 🦖"
+                      : userName
+                        ? `Welcome back, ${userName}`
+                        : "Hello"}
                 </p>
                 <p className="font-body text-[0.9375rem] text-secondary max-w-md mx-auto leading-relaxed">
-                  {dinoBuddyMode
-                    ? "Good to see you. Say anything — or just hang out. I'm right here."
-                    : "Whatever you carry, you can set it down here. Say anything — or nothing at all."}
+                  {persona === "game"
+                    ? "Fire up a game and let me watch — I'll react as you play. Tap the screen icon below to share."
+                    : persona === "dino"
+                      ? "Good to see you. Say anything — or just hang out. I'm right here."
+                      : "Whatever you carry, you can set it down here. Say anything — or nothing at all."}
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2 max-w-lg">
-                {(dinoBuddyMode ? SUGGESTIONS_DINO : SUGGESTIONS_DEFAULT).map((s) => (
+                {(persona === "game" ? SUGGESTIONS_GAME : persona === "dino" ? SUGGESTIONS_DINO : SUGGESTIONS_DEFAULT).map((s) => (
                   <button
                     key={s}
                     type="button"
@@ -362,7 +420,7 @@ export default function Sanctuary() {
           {isStreaming && streamingContent && (
             <div className="message-appear">
               <div className="msg-assistant-block max-w-none">
-                <p className="msg-label">{dinoBuddyMode ? "Dino Buddy" : "You"}</p>
+                <p className="msg-label">{personaLabel(persona)}</p>
                 <div className="prose-you font-body">
                   <Markdown>{streamingContent}</Markdown>
                   <span className="inline-block w-0.5 h-[1.1em] bg-warm-400/50 animate-blink ml-0.5 align-middle rounded-full" />
@@ -445,7 +503,7 @@ export default function Sanctuary() {
               value={input}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={dinoBuddyMode ? "What's on your mind?" : "Message You…"}
+              placeholder={persona === "game" ? "Talk to Game Buddy…" : persona === "dino" ? "What's on your mind?" : "Message You…"}
               rows={1}
               className="w-full bg-transparent text-primary placeholder:text-muted font-body text-base resize-none outline-none leading-relaxed max-h-40 px-1"
             />
@@ -465,6 +523,21 @@ export default function Sanctuary() {
                     <circle cx="12" cy="13" r="3" />
                   </svg>
                 </button>
+
+                {isScreenShareSupported() && (
+                  <button
+                    onClick={() => setWatching((w) => !w)}
+                    className={`icon-btn ${watching ? "is-watching" : ""}`}
+                    title={watching ? "Stop watching screen" : "Watch my screen"}
+                    aria-pressed={watching}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                  </button>
+                )}
 
                 <button
                   onClick={() => {
@@ -499,7 +572,15 @@ export default function Sanctuary() {
             <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} multiple className="hidden" onChange={handleFileSelect} />
           </div>
           <p className="text-center text-secondary text-[0.6875rem] mt-2.5 mb-1 font-body leading-relaxed opacity-80">
-            {dinoBuddyMode ? (
+            {persona === "game" ? (
+              <>
+                Frames are read by a vision model and stay on your device until sent.
+                <br />
+                <span className="text-muted">
+                  Screen-watch needs Desktop Mode — it can&apos;t see a fullscreen game in Steam Game Mode. 🎮
+                </span>
+              </>
+            ) : persona === "dino" ? (
               <>
                 Just you and Dino. Stays on your device until you send.
                 <br />
@@ -539,6 +620,8 @@ function MessageBubble({
 }) {
   const isUser = message.role === "user";
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
+  const gameBuddyMode = useStore((s) => s.gameBuddyMode);
+  const assistantLabel = gameBuddyMode ? "Game Buddy" : dinoBuddyMode ? "Dino Buddy" : "You";
 
   if (isUser) {
     return (
@@ -565,7 +648,7 @@ function MessageBubble({
     <div className="message-appear group">
       <div className="msg-assistant-block max-w-none">
         <div className="flex items-center gap-2.5 mb-1.5">
-          <p className="msg-label" style={{ marginBottom: 0 }}>{dinoBuddyMode ? "Dino Buddy" : "You"}</p>
+          <p className="msg-label" style={{ marginBottom: 0 }}>{assistantLabel}</p>
           <time className="msg-time">{formatTime(message.timestamp)}</time>
         </div>
         {message.image && (
