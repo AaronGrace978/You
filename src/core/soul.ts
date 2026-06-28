@@ -27,7 +27,8 @@ export function buildSystemPrompt(
       userName,
       relationalContext,
       adaptation,
-      options.gameBuddyHype ?? 55
+      options.gameBuddyHype ?? 55,
+      { dino: !!options.dinoBuddyMode, dinoEnergy: options.dinoEnergy }
     );
   }
   if (options?.dinoBuddyMode) {

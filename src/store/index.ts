@@ -384,16 +384,14 @@ export const useStore = create<AppState>()(
       setAdaptiveLoops: (adaptiveLoops) => set({ adaptiveLoops }),
 
       dinoBuddyMode: false,
-      // Personas are mutually exclusive — turning Dino on retires Game Buddy.
-      setDinoBuddyMode: (dinoBuddyMode) =>
-        set(dinoBuddyMode ? { dinoBuddyMode, gameBuddyMode: false } : { dinoBuddyMode }),
+      // Personas can layer: Dino + Game Buddy = a Dino-flavored gaming buddy.
+      setDinoBuddyMode: (dinoBuddyMode) => set({ dinoBuddyMode }),
 
       dinoEnergy: 35,
       setDinoEnergy: (dinoEnergy) => set({ dinoEnergy: Math.max(0, Math.min(100, dinoEnergy)) }),
 
       gameBuddyMode: false,
-      setGameBuddyMode: (gameBuddyMode) =>
-        set(gameBuddyMode ? { gameBuddyMode, dinoBuddyMode: false } : { gameBuddyMode }),
+      setGameBuddyMode: (gameBuddyMode) => set({ gameBuddyMode }),
 
       gameBuddyHype: 55,
       setGameBuddyHype: (gameBuddyHype) =>
