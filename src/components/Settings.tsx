@@ -5,7 +5,7 @@ import { getDinoEnergyTier } from "../core/dino-buddy";
 import { getGameBuddyTier } from "../core/game-buddy";
 import { isScreenShareSupported } from "../core/screen";
 import { testOllamaConnection, effectiveProxyUrl } from "../core/providers";
-import { testElevenLabsVoice, testBrowserVoice, validateElevenLabsKey, ELEVENLABS_KEY_URL } from "../core/voice";
+import { testElevenLabsVoice, testBrowserVoice, validateElevenLabsKey, ELEVENLABS_KEY_URL, unlockAudioForPlayback, stopSpeaking } from "../core/voice";
 import {
   isHostedApp,
   OLLAMA_PROXY_URL,
@@ -38,6 +38,7 @@ export default function Settings() {
   const useElevenLabsTts = useStore((s) => s.useElevenLabsTts);
   const voicePttMode = useStore((s) => s.voicePttMode);
   const voiceSeeMode = useStore((s) => s.voiceSeeMode);
+  const speakReplies = useStore((s) => s.speakReplies);
   const adaptiveLoops = useStore((s) => s.adaptiveLoops);
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const dinoEnergy = useStore((s) => s.dinoEnergy);
@@ -56,6 +57,7 @@ export default function Settings() {
   const setUseElevenLabsTts = useStore((s) => s.setUseElevenLabsTts);
   const setVoicePttMode = useStore((s) => s.setVoicePttMode);
   const setVoiceSeeMode = useStore((s) => s.setVoiceSeeMode);
+  const setSpeakReplies = useStore((s) => s.setSpeakReplies);
   const setAdaptiveLoops = useStore((s) => s.setAdaptiveLoops);
   const setDinoBuddyMode = useStore((s) => s.setDinoBuddyMode);
   const setDinoEnergy = useStore((s) => s.setDinoEnergy);
@@ -711,6 +713,48 @@ export default function Settings() {
                     </button>
                   ))}
                 </div>
+              </Field>
+
+              <Field label="Speak replies aloud">
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: true, label: "On", sub: "Hear replies in the normal chat — great while gaming" },
+                      { id: false, label: "Off", sub: "Read replies on screen only" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={String(opt.id)}
+                      type="button"
+                      onClick={() => {
+                        if (opt.id) void unlockAudioForPlayback();
+                        else stopSpeaking();
+                        setSpeakReplies(opt.id);
+                      }}
+                      className="flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
+                      style={{
+                        background:
+                          speakReplies === opt.id
+                            ? "rgb(var(--c-accent) / 0.15)"
+                            : "rgb(var(--c-elevated) / 0.5)",
+                        color:
+                          speakReplies === opt.id
+                            ? "rgb(var(--c-accent))"
+                            : "rgb(var(--c-muted))",
+                        border:
+                          speakReplies === opt.id
+                            ? "1px solid rgb(var(--c-accent) / 0.3)"
+                            : "1px solid rgb(var(--c-border) / 0.3)",
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      <span className="text-[10px] opacity-70">{opt.sub}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="font-body text-[10px] mt-2 leading-relaxed opacity-80" style={{ color: "rgb(var(--c-muted))" }}>
+                  Speaks each reply using the engine below. You can also toggle this from the speaker icon in the chat bar.
+                </p>
               </Field>
 
               {!useElevenLabsTts && (
