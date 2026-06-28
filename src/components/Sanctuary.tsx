@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, lazy, Suspense, useCallback } from "react";
 import { useStore, type Message, type Attachment } from "../store";
-import { unlockAudioForPlayback } from "../core/voice";
+import { unlockAudioForPlayback, stopSpeaking } from "../core/voice";
 import { enterAndroidImmersive } from "../core/immersive";
 import { parseJournalMarkdown, type ParsedJournalMessage } from "../core/journal";
 import { isScreenShareSupported } from "../core/screen";
@@ -121,6 +121,8 @@ export default function Sanctuary() {
   const userName = useStore((s) => s.userName);
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const gameBuddyMode = useStore((s) => s.gameBuddyMode);
+  const speakReplies = useStore((s) => s.speakReplies);
+  const setSpeakReplies = useStore((s) => s.setSpeakReplies);
   const persona: PersonaKind = gameBuddyMode ? "game" : dinoBuddyMode ? "dino" : "you";
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
@@ -192,6 +194,17 @@ export default function Sanctuary() {
     },
     [sendMessage]
   );
+
+  const toggleSpeakReplies = () => {
+    if (speakReplies) {
+      setSpeakReplies(false);
+      stopSpeaking();
+    } else {
+      // Enabling is a user gesture — unlock audio so replies can autoplay.
+      void unlockAudioForPlayback();
+      setSpeakReplies(true);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -538,6 +551,27 @@ export default function Sanctuary() {
                     </svg>
                   </button>
                 )}
+
+                <button
+                  onClick={toggleSpeakReplies}
+                  className={`icon-btn ${speakReplies ? "is-watching" : ""}`}
+                  title={speakReplies ? "Mute spoken replies" : "Speak replies aloud"}
+                  aria-pressed={speakReplies}
+                >
+                  {speakReplies ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <line x1="23" y1="9" x2="17" y2="15" />
+                      <line x1="17" y1="9" x2="23" y2="15" />
+                    </svg>
+                  )}
+                </button>
 
                 <button
                   onClick={() => {
