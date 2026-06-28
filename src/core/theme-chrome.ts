@@ -1,8 +1,13 @@
-export const THEME_COLORS = { dark: "#161618", light: "#faf9f5", dawn: "#fdefe6" } as const;
+export const THEME_COLORS = {
+  dark: "#161618",
+  light: "#faf9f5",
+  dawn: "#fdefe6",
+  deck: "#0e1117",
+} as const;
 
-/** Dawn reads as a light surface for OS chrome (status bar icons, form controls). */
+/** Dawn & light read as light surfaces for OS chrome; dark & deck read dark. */
 function colorSchemeFor(theme: keyof typeof THEME_COLORS): "dark" | "light" {
-  return theme === "dark" ? "dark" : "light";
+  return theme === "dark" || theme === "deck" ? "dark" : "light";
 }
 
 /** Chrome Android sometimes ignores theme-color updates — recreate the meta tag. */
