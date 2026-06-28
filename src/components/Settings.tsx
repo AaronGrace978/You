@@ -304,6 +304,19 @@ export default function Settings() {
                     </button>
                   ))}
                 </div>
+                {gameBuddyMode && dinoBuddyMode && (
+                  <p
+                    className="font-body text-[10px] leading-relaxed rounded-lg px-3 py-2 mt-2"
+                    style={{
+                      color: "rgb(var(--c-muted))",
+                      background: "rgb(255 140 60 / 0.1)",
+                      border: "1px solid rgb(255 140 60 / 0.25)",
+                    }}
+                  >
+                    🦖🎮 <span style={{ color: "rgb(var(--c-text) / 0.85)" }}>Dino flavor on</span> — your gaming
+                    buddy watches and reacts with Dino&apos;s heart. Hype sets the gaming intensity; Dino energy sets the dino loudness.
+                  </p>
+                )}
               </Field>
               {gameBuddyMode && (
                 <>
