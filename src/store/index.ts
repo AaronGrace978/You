@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { generateResponse, type ConversationMessage } from "../core/conversation";
 import { rememberMessage, importMemories } from "../core/memory";
-import { normalizeElevenLabsApiKey } from "../core/voice";
+import { normalizeElevenLabsApiKey, SpeechStreamQueue } from "../core/voice";
 import { applyThemeChrome } from "../core/theme-chrome";
 import type { ParsedJournalMessage } from "../core/journal";
 
@@ -115,6 +115,10 @@ interface AppState {
   voiceSeeMode: boolean;
   setVoiceSeeMode: (v: boolean) => void;
 
+  /** Speak assistant replies aloud in the normal chat (hands-free while gaming). */
+  speakReplies: boolean;
+  setSpeakReplies: (v: boolean) => void;
+
   hasSeenLanding: boolean;
 }
 
@@ -125,6 +129,8 @@ export const useStore = create<AppState>()(
     (set, get) => {
       // Tracks the in-flight reply so it can be aborted by the Stop button.
       let activeController: AbortController | null = null;
+      // Speaks the in-flight reply aloud when "speak replies" is on.
+      let activeSpeech: SpeechStreamQueue | null = null;
 
       const buildConfig = (signal: AbortSignal) => {
         const state = get();
@@ -151,13 +157,29 @@ export const useStore = create<AppState>()(
       const streamAssistant = async (history: ConversationMessage[]) => {
         const controller = new AbortController();
         activeController = controller;
+
+        // Retire any speech still trailing from the previous reply.
+        activeSpeech?.stop();
+        const s0 = get();
+        const speechQueue = s0.speakReplies
+          ? new SpeechStreamQueue({
+              useElevenLabs: s0.useElevenLabsTts,
+              elevenlabsApiKey: s0.elevenlabsApiKey,
+              elevenlabsVoiceId: s0.elevenlabsVoiceId,
+            })
+          : null;
+        activeSpeech = speechQueue;
+
         set({ isStreaming: true, streamingContent: "" });
 
         try {
           const response = await generateResponse(
             history,
             buildConfig(controller.signal),
-            (token) => set((s) => ({ streamingContent: s.streamingContent + token }))
+            (token) => {
+              set((s) => ({ streamingContent: s.streamingContent + token }));
+              speechQueue?.feed(token);
+            }
           );
 
           const assistantMsg: Message = {
@@ -175,7 +197,10 @@ export const useStore = create<AppState>()(
           }));
 
           rememberMessage(assistantMsg);
+          // Let the spoken reply finish playing on its own.
+          void speechQueue?.flush();
         } catch (err) {
+          speechQueue?.stop();
           const aborted =
             controller.signal.aborted ||
             (err instanceof DOMException && err.name === "AbortError") ||
@@ -287,10 +312,12 @@ export const useStore = create<AppState>()(
 
       stopStreaming: () => {
         activeController?.abort();
+        activeSpeech?.stop();
       },
 
       clearConversation: () => {
         activeController?.abort();
+        activeSpeech?.stop();
         set({ messages: [], isStreaming: false, streamingContent: "" });
       },
 
@@ -385,6 +412,9 @@ export const useStore = create<AppState>()(
       voiceSeeMode: false,
       setVoiceSeeMode: (voiceSeeMode) => set({ voiceSeeMode }),
 
+      speakReplies: false,
+      setSpeakReplies: (speakReplies) => set({ speakReplies }),
+
       hasSeenLanding: false,
       };
     },
@@ -415,6 +445,7 @@ export const useStore = create<AppState>()(
         screenWatchInterval: state.screenWatchInterval,
         voicePttMode: state.voicePttMode,
         voiceSeeMode: state.voiceSeeMode,
+        speakReplies: state.speakReplies,
         hasSeenLanding: state.hasSeenLanding,
       }),
       onRehydrateStorage: () => {
