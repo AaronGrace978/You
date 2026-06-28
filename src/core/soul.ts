@@ -7,10 +7,13 @@
 
 import type { AdaptationContext } from "./adapt";
 import { buildDinoBuddyPrompt } from "./dino-buddy";
+import { buildGameBuddyPrompt } from "./game-buddy";
 
 export interface SoulOptions {
   dinoBuddyMode?: boolean;
   dinoEnergy?: number;
+  gameBuddyMode?: boolean;
+  gameBuddyHype?: number;
 }
 
 export function buildSystemPrompt(
@@ -19,6 +22,14 @@ export function buildSystemPrompt(
   adaptation?: AdaptationContext,
   options?: SoulOptions
 ): string {
+  if (options?.gameBuddyMode) {
+    return buildGameBuddyPrompt(
+      userName,
+      relationalContext,
+      adaptation,
+      options.gameBuddyHype ?? 55
+    );
+  }
   if (options?.dinoBuddyMode) {
     return buildDinoBuddyPrompt(
       userName,
