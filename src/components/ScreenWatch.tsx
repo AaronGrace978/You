@@ -18,13 +18,15 @@ interface ScreenWatchProps {
   onReact: (dataUrl: string) => void;
   onStop: () => void;
   isStreaming: boolean;
+  /** Populated with a "grab the current frame" fn so callers (e.g. voice talk) can see the screen. */
+  grabberRef?: React.MutableRefObject<(() => string | null) | null>;
 }
 
 /**
  * A floating picture-in-picture of the shared screen. Samples a still frame
  * (manually, or on an interval) and hands it to Game Buddy to react to.
  */
-export default function ScreenWatch({ onReact, onStop, isStreaming }: ScreenWatchProps) {
+export default function ScreenWatch({ onReact, onStop, isStreaming, grabberRef }: ScreenWatchProps) {
   const screenWatchInterval = useStore((s) => s.screenWatchInterval);
   const setScreenWatchInterval = useStore((s) => s.setScreenWatchInterval);
 
@@ -94,6 +96,15 @@ export default function ScreenWatch({ onReact, onStop, isStreaming }: ScreenWatc
     const frame = captureVideoFrame(video, 1024);
     if (frame) onReact(frame);
   }, [onReact]);
+
+  // Hand a "grab current frame" fn up to the parent (used by voice talk while playing).
+  useEffect(() => {
+    if (!grabberRef) return;
+    grabberRef.current = () => (videoRef.current ? captureVideoFrame(videoRef.current, 1024) : null);
+    return () => {
+      grabberRef.current = null;
+    };
+  }, [grabberRef]);
 
   // Auto-react loop — paused while a reply is mid-stream so frames don't pile up.
   useEffect(() => {
