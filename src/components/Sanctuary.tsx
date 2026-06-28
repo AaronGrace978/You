@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect, lazy, Suspense, useCallback } from "react";
 import { useStore, type Message, type Attachment } from "../store";
-import { unlockAudioForPlayback, stopSpeaking } from "../core/voice";
+import {
+  unlockAudioForPlayback,
+  stopSpeaking,
+  startListening,
+  endPttCapture,
+  isSpeechRecognitionSupported,
+} from "../core/voice";
 import { enterAndroidImmersive } from "../core/immersive";
 import { parseJournalMarkdown, type ParsedJournalMessage } from "../core/journal";
 import { isScreenShareSupported } from "../core/screen";
@@ -15,8 +21,11 @@ const SCREEN_WATCH_PROMPT = "Here's my screen right now — react to what's happ
 
 type PersonaKind = "you" | "dino" | "game";
 
-function personaLabel(persona: PersonaKind): string {
-  return persona === "game" ? "Game Buddy" : persona === "dino" ? "Dino Buddy" : "You";
+/** Display name for the assistant — Dino flavor wins the name even in game mode. */
+function assistantName(game: boolean, dino: boolean): string {
+  if (game) return dino ? "Dino Buddy" : "Game Buddy";
+  if (dino) return "Dino Buddy";
+  return "You";
 }
 
 const ACCEPTED_TYPES =
@@ -128,6 +137,10 @@ export default function Sanctuary() {
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [showCamera, setShowCamera] = useState(false);
   const [watching, setWatching] = useState(false);
+  const [talking, setTalking] = useState(false);
+  const [talkInterim, setTalkInterim] = useState("");
+  const screenGrabRef = useRef<(() => string | null) | null>(null);
+  const talkingRef = useRef(false);
   const [entered, setEntered] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const [importNote, setImportNote] = useState<string | null>(null);
@@ -205,6 +218,40 @@ export default function Sanctuary() {
       setSpeakReplies(true);
     }
   };
+
+  const startTalk = useCallback(() => {
+    if (talkingRef.current || !isSpeechRecognitionSupported()) return;
+    // Talking implies wanting to hear back — unlock audio + speak replies.
+    void unlockAudioForPlayback();
+    if (!useStore.getState().speakReplies) setSpeakReplies(true);
+    stopSpeaking();
+    talkingRef.current = true;
+    setTalking(true);
+    setTalkInterim("");
+    startListening(
+      {
+        onInterim: (t) => setTalkInterim(t),
+        onFinal: () => {},
+        onError: () => {},
+        onEnd: () => {},
+      },
+      { ptt: true }
+    );
+  }, [setSpeakReplies]);
+
+  const endTalk = useCallback(() => {
+    if (!talkingRef.current) return;
+    talkingRef.current = false;
+    setTalking(false);
+    endPttCapture((text) => {
+      setTalkInterim("");
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      // If we're watching the screen, let him see what you're talking about.
+      const frame = screenGrabRef.current?.() ?? undefined;
+      void sendMessage(trimmed, frame);
+    });
+  }, [sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -299,14 +346,15 @@ export default function Sanctuary() {
             onReact={handleScreenFrame}
             onStop={() => setWatching(false)}
             isStreaming={isStreaming}
+            grabberRef={screenGrabRef}
           />
         </Suspense>
       )}
       <header className="chat-header safe-top safe-x relative flex items-center justify-center px-6 py-3.5 min-h-[3.25rem] shrink-0">
         <h2 className="font-display text-[1.0625rem] text-warm-50 tracking-wide pointer-events-none select-none">
-          {persona === "game" ? (
-            <span>Game Buddy <span className="opacity-90">🎮</span></span>
-          ) : persona === "dino" ? (
+          {gameBuddyMode ? (
+            <span>{dinoBuddyMode ? "Dino" : "Game Buddy"} <span className="opacity-90">{dinoBuddyMode ? "🦖🎮" : "🎮"}</span></span>
+          ) : dinoBuddyMode ? (
             <span>Dino <span className="opacity-90">🦖</span></span>
           ) : (
             "You"
@@ -433,7 +481,7 @@ export default function Sanctuary() {
           {isStreaming && streamingContent && (
             <div className="message-appear">
               <div className="msg-assistant-block max-w-none">
-                <p className="msg-label">{personaLabel(persona)}</p>
+                <p className="msg-label">{assistantName(gameBuddyMode, dinoBuddyMode)}</p>
                 <div className="prose-you font-body">
                   <Markdown>{streamingContent}</Markdown>
                   <span className="inline-block w-0.5 h-[1.1em] bg-warm-400/50 animate-blink ml-0.5 align-middle rounded-full" />
@@ -457,6 +505,12 @@ export default function Sanctuary() {
       </div>
 
       <div className="chat-dock-fixed safe-x pt-2">
+        {talking && (
+          <div className="talk-listening" role="status" aria-live="polite">
+            <span className="talk-pulse" aria-hidden />
+            <span className="talk-text">{talkInterim || "Listening… let go to send"}</span>
+          </div>
+        )}
         {(isStreaming || (!atBottom && messages.length > 0)) && (
           <div className="flex justify-center items-center gap-2 mb-2.5 px-4">
             {!atBottom && messages.length > 0 && (
@@ -573,6 +627,41 @@ export default function Sanctuary() {
                   )}
                 </button>
 
+                {isSpeechRecognitionSupported() && (
+                  <button
+                    type="button"
+                    className={`icon-btn talk-btn ${talking ? "is-talking" : ""}`}
+                    title="Hold to talk"
+                    aria-label="Hold to talk"
+                    aria-pressed={talking}
+                    onPointerDown={(e) => {
+                      if (e.button !== 0 && e.pointerType === "mouse") return;
+                      e.preventDefault();
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      startTalk();
+                    }}
+                    onPointerUp={(e) => {
+                      e.preventDefault();
+                      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                        e.currentTarget.releasePointerCapture(e.pointerId);
+                      }
+                      endTalk();
+                    }}
+                    onPointerCancel={(e) => {
+                      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                        e.currentTarget.releasePointerCapture(e.pointerId);
+                      }
+                      endTalk();
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" x2="12" y1="19" y2="22" />
+                    </svg>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     unlockAudioForPlayback();
@@ -580,7 +669,7 @@ export default function Sanctuary() {
                     setVoiceMode(true);
                   }}
                   className="icon-btn"
-                  title="Voice mode"
+                  title="Voice mode (full screen)"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
@@ -655,7 +744,7 @@ function MessageBubble({
   const isUser = message.role === "user";
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const gameBuddyMode = useStore((s) => s.gameBuddyMode);
-  const assistantLabel = gameBuddyMode ? "Game Buddy" : dinoBuddyMode ? "Dino Buddy" : "You";
+  const assistantLabel = assistantName(gameBuddyMode, dinoBuddyMode);
 
   if (isUser) {
     return (

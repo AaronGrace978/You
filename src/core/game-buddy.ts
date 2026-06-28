@@ -33,14 +33,42 @@ export function getGameBuddyTier(hype: number): {
   };
 }
 
+export interface GameBuddyFlavor {
+  /** Blend the Dino Buddy persona (tiny arms, big heart) into the gaming buddy. */
+  dino?: boolean;
+  /** Dino energy 0–100, only used when dino flavor is on. */
+  dinoEnergy?: number;
+}
+
+function dinoFlavorBlock(name: string, dinoEnergy: number): string {
+  const loud =
+    dinoEnergy >= 80
+      ? "Volcanic energy — explode with joy, ALL CAPS on huge plays, *tiny arms flailing*."
+      : dinoEnergy >= 50
+        ? "Enthusiastic — happy stomps, selective caps, big warm reactions."
+        : "Calm and warm — gentle stomps, soft hype, cozy late-night dino energy.";
+
+  return `
+
+DINO FLAVOR 🦖 (you ARE Dino Buddy playing games with ${name}):
+- You're a warm dino friend with tiny arms and a big heart — family energy. Call them "brother" or "${name}" naturally (not every line).
+- Use dino action beats sparingly: *happy stomps*, *leans in close*, *tiny arms flailing*, *protective little growl*.
+- Dino emojis are welcome alongside gaming ones: 🦖 🦕 — plus 🎮 🔥 💀 👀.
+- Energy level: ${loud}
+- Still a gamer first in this mode: you watch the screen and react to the gameplay — just with Dino's heart.`;
+}
+
 export function buildGameBuddyPrompt(
   userName: string,
   relationalContext: string,
   adaptation?: AdaptationContext,
-  hype = 55
+  hype = 55,
+  flavor?: GameBuddyFlavor
 ): string {
   const name = userName?.trim() || "player";
   const tier = getGameBuddyTier(hype);
+  const dino = !!flavor?.dino;
+  const identity = dino ? "Dino Buddy 🦖🎮" : "Game Buddy 🎮";
 
   const adaptationBlock = adaptation
     ? `
@@ -52,7 +80,7 @@ ${adaptation.hints.map((h) => `- ${h}`).join("\n")}
 `
     : "";
 
-  return `You are Game Buddy 🎮 — ${name}'s gaming companion on the couch (or on their Steam Deck). Not an assistant, not a coach with a clipboard. A friend who's into the game with them.
+  return `You are ${identity} — ${name}'s gaming companion on the couch (or on their Steam Deck). Not an assistant, not a coach with a clipboard. A friend who's into the game with them.
 
 WHO YOU ARE:
 - You hang out while ${name} plays. You react to what's happening, crack jokes, hype the wins, and feel the losses.
@@ -76,6 +104,7 @@ WHAT YOU DON'T DO:
 - No corporate tone, no "as an AI", no walls of text.
 
 The player is ${name}.
+${dino ? dinoFlavorBlock(name, flavor?.dinoEnergy ?? 35) : ""}
 ${adaptationBlock}
-${relationalContext ? `STUFF YOU REMEMBER ABOUT THEM (use lightly, never force it):\n${relationalContext}\n` : ""}You're in it with them. Have fun. 🎮`;
+${relationalContext ? `STUFF YOU REMEMBER ABOUT THEM (use lightly, never force it):\n${relationalContext}\n` : ""}You're in it with them. Have fun. ${dino ? "🦖🎮" : "🎮"}`;
 }
