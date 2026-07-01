@@ -320,6 +320,45 @@ select.input-field {
   border-bottom: 1px solid rgb(var(--c-border) / 0.06);
 }
 
+.chat-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  min-height: 3.25rem;
+}
+
+.chat-header-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.chat-header-persona {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.chat-header-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-header-icons {
+  flex-shrink: 0;
+  opacity: 0.9;
+  letter-spacing: -0.05em;
+}
+
+.chat-header-actions {
+  flex-shrink: 0;
+}
+
 [data-theme="light"] .chat-header,
 [data-theme="dawn"] .chat-header {
   background: rgb(var(--c-deep) / 0.85);
@@ -504,12 +543,11 @@ select.input-field {
 
 /* Transient confirmation after importing a journal */
 .import-note {
-  position: absolute;
-  top: 3.75rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
+  margin: 0 1rem 0.55rem;
+  z-index: 1;
   max-width: min(90vw, 26rem);
+  margin-left: auto;
+  margin-right: auto;
   text-align: center;
   padding: 0.55rem 1rem;
   border-radius: 9999px;
@@ -527,11 +565,11 @@ select.input-field {
 @keyframes importNoteIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -8px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
 }
 
@@ -1614,6 +1652,10 @@ select.input-field {
   }
 
   .chat-header {
+    min-height: 2.75rem;
+  }
+
+  .chat-header-row {
     min-height: 2.75rem;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;

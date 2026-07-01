@@ -23,6 +23,7 @@ import { generateResponse } from "../core/conversation";
 import { rememberMessage } from "../core/memory";
 import { acquireWakeLock, releaseWakeLock, watchWakeLockRenew } from "../core/wake-lock";
 import { enterAndroidImmersive, exitAndroidImmersive } from "../core/immersive";
+import { useGamepadPtt } from "../hooks/useGamepadControls";
 
 type VoiceState = "ready" | "listening" | "processing" | "speaking" | "error" | "paused";
 
@@ -371,6 +372,8 @@ export default function VoiceMode() {
       void processUtterance(text);
     });
   }, [processUtterance]);
+
+  useGamepadPtt({ onPttDown: startPtt, onPttUp: endPtt });
 
   useEffect(() => {
     activeRef.current = true;

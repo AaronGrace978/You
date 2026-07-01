@@ -12,12 +12,15 @@ import { applyThemeChrome, watchThemeChrome } from "./core/theme-chrome";
 import { initMemoryStore } from "./core/memory";
 import { enterAndroidImmersive, exitAndroidImmersive } from "./core/immersive";
 import { applyViewportInsets, watchViewportChrome } from "./core/viewport-chrome";
+import { useGamepadNavigation } from "./hooks/useGamepadControls";
 
 export default function App() {
   const view = useStore((s) => s.view);
   const theme = useStore((s) => s.theme);
   const immersiveNav = useStore((s) => s.immersiveNav);
   const voiceMode = useStore((s) => s.voiceMode);
+
+  useGamepadNavigation();
 
   useEffect(() => {
     applyThemeChrome(theme);

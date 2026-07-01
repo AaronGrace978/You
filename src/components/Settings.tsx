@@ -18,6 +18,7 @@ import {
 } from "../core/ai-config";
 import { enterAndroidImmersive, exitAndroidImmersive } from "../core/immersive";
 import { isAndroid } from "../core/ai-config";
+import { isGamepadSupported } from "../core/gamepad";
 
 export default function Settings() {
   const setView = useStore((s) => s.setView);
@@ -39,6 +40,7 @@ export default function Settings() {
   const voicePttMode = useStore((s) => s.voicePttMode);
   const voiceSeeMode = useStore((s) => s.voiceSeeMode);
   const speakReplies = useStore((s) => s.speakReplies);
+  const gamepadEnabled = useStore((s) => s.gamepadEnabled);
   const adaptiveLoops = useStore((s) => s.adaptiveLoops);
   const dinoBuddyMode = useStore((s) => s.dinoBuddyMode);
   const dinoEnergy = useStore((s) => s.dinoEnergy);
@@ -58,6 +60,7 @@ export default function Settings() {
   const setVoicePttMode = useStore((s) => s.setVoicePttMode);
   const setVoiceSeeMode = useStore((s) => s.setVoiceSeeMode);
   const setSpeakReplies = useStore((s) => s.setSpeakReplies);
+  const setGamepadEnabled = useStore((s) => s.setGamepadEnabled);
   const setAdaptiveLoops = useStore((s) => s.setAdaptiveLoops);
   const setDinoBuddyMode = useStore((s) => s.setDinoBuddyMode);
   const setDinoEnergy = useStore((s) => s.setDinoEnergy);
@@ -656,6 +659,42 @@ export default function Settings() {
                   ))}
                 </div>
               </Field>
+              {isGamepadSupported() && (
+                <Field label="Steam Deck / gamepad">
+                  <div className="flex gap-2">
+                    {(
+                      [
+                        { id: true, label: "On", sub: "Back paddles = hold to talk · B = back · Start = voice mode" },
+                        { id: false, label: "Off", sub: "Touch / mouse only" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={String(opt.id)}
+                        type="button"
+                        onClick={() => setGamepadEnabled(opt.id)}
+                        className="flex-1 flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl font-body text-xs tracking-wide transition-all cursor-pointer"
+                        style={{
+                          background:
+                            gamepadEnabled === opt.id
+                              ? "rgb(var(--c-accent) / 0.15)"
+                              : "rgb(var(--c-elevated) / 0.5)",
+                          color:
+                            gamepadEnabled === opt.id
+                              ? "rgb(var(--c-accent))"
+                              : "rgb(var(--c-muted))",
+                          border:
+                            gamepadEnabled === opt.id
+                              ? "1px solid rgb(var(--c-accent) / 0.3)"
+                              : "1px solid rgb(var(--c-border) / 0.3)",
+                        }}
+                      >
+                        <span>{opt.label}</span>
+                        <span className="text-[10px] opacity-70">{opt.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              )}
               <Field label="See mode (voice)">
                 <div className="flex gap-2">
                   {(
