@@ -119,6 +119,10 @@ interface AppState {
   speakReplies: boolean;
   setSpeakReplies: (v: boolean) => void;
 
+  /** Steam Deck / gamepad back-paddle PTT and B-button navigation. */
+  gamepadEnabled: boolean;
+  setGamepadEnabled: (v: boolean) => void;
+
   hasSeenLanding: boolean;
 }
 
@@ -413,6 +417,9 @@ export const useStore = create<AppState>()(
       speakReplies: false,
       setSpeakReplies: (speakReplies) => set({ speakReplies }),
 
+      gamepadEnabled: true,
+      setGamepadEnabled: (gamepadEnabled) => set({ gamepadEnabled }),
+
       hasSeenLanding: false,
       };
     },
@@ -444,6 +451,7 @@ export const useStore = create<AppState>()(
         voicePttMode: state.voicePttMode,
         voiceSeeMode: state.voiceSeeMode,
         speakReplies: state.speakReplies,
+        gamepadEnabled: state.gamepadEnabled,
         hasSeenLanding: state.hasSeenLanding,
       }),
       onRehydrateStorage: () => {

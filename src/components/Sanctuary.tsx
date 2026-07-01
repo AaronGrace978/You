@@ -10,6 +10,7 @@ import {
 import { enterAndroidImmersive } from "../core/immersive";
 import { parseJournalMarkdown, type ParsedJournalMessage } from "../core/journal";
 import { isScreenShareSupported } from "../core/screen";
+import { useGamepadPtt } from "../hooks/useGamepadControls";
 import Markdown from "react-markdown";
 
 const PdfViewer = lazy(() => import("./PdfViewer"));
@@ -26,6 +27,14 @@ function assistantName(game: boolean, dino: boolean): string {
   if (game) return dino ? "Dino Buddy" : "Game Buddy";
   if (dino) return "Dino Buddy";
   return "You";
+}
+
+/** Compact header label — icons-only when both gaming personas are layered. */
+function headerTitle(game: boolean, dino: boolean): { text: string; icons?: string } {
+  if (game && dino) return { text: "Dino", icons: "🦖🎮" };
+  if (game) return { text: "Game Buddy", icons: "🎮" };
+  if (dino) return { text: "Dino", icons: "🦖" };
+  return { text: "You" };
 }
 
 const ACCEPTED_TYPES =
@@ -71,20 +80,30 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function exportConversation(messages: Message[], userName: string, persona: PersonaKind) {
+function exportConversation(
+  messages: Message[],
+  userName: string,
+  persona: PersonaKind,
+  dinoBuddyMode: boolean
+) {
   const isDino = persona === "dino";
   const isGame = persona === "game";
-  const title = isGame
-    ? "# Game Buddy — Session Log 🎮"
-    : isDino
-      ? "# Dino Buddy — Conversation Journal 🦖"
-      : "# You — Conversation Journal";
-  const assistantWho = isGame ? "Game Buddy" : isDino ? "Dino Buddy" : "You (AI)";
-  const closing = isGame
-    ? "*🎮 GG. Catch you next session.*"
-    : isDino
-      ? "*🦖 Thanks for hanging out, bro.*"
-      : "*Whatever you carry, you can set it down here.*";
+  const isBoth = isGame && dinoBuddyMode;
+  const title = isBoth
+    ? "# Dino Buddy — Gaming Session 🦖🎮"
+    : isGame
+      ? "# Game Buddy — Session Log 🎮"
+      : isDino
+        ? "# Dino Buddy — Conversation Journal 🦖"
+        : "# You — Conversation Journal";
+  const assistantWho = isBoth ? "Dino Buddy" : isGame ? "Game Buddy" : isDino ? "Dino Buddy" : "You (AI)";
+  const closing = isBoth
+    ? "*🦖🎮 GG. Catch you next session, bro.*"
+    : isGame
+      ? "*🎮 GG. Catch you next session.*"
+      : isDino
+        ? "*🦖 Thanks for hanging out, bro.*"
+        : "*Whatever you carry, you can set it down here.*";
 
   const lines: string[] = [
     title,
@@ -253,6 +272,8 @@ export default function Sanctuary() {
     });
   }, [sendMessage]);
 
+  useGamepadPtt({ onPttDown: startTalk, onPttUp: endTalk });
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -350,20 +371,25 @@ export default function Sanctuary() {
           />
         </Suspense>
       )}
-      <header className="chat-header safe-top safe-x relative flex items-center justify-center px-6 py-3.5 min-h-[3.25rem] shrink-0">
-        <h2 className="font-display text-[1.0625rem] text-warm-50 tracking-wide pointer-events-none select-none">
-          {gameBuddyMode ? (
-            <span>{dinoBuddyMode ? "Dino" : "Game Buddy"} <span className="opacity-90">{dinoBuddyMode ? "🦖🎮" : "🎮"}</span></span>
-          ) : dinoBuddyMode ? (
-            <span>Dino <span className="opacity-90">🦖</span></span>
-          ) : (
-            "You"
-          )}
-        </h2>
-        <div className="absolute right-4 safe-x flex items-center gap-1">
+      <header className="chat-header safe-top safe-x shrink-0">
+        <div className="chat-header-row">
+          <h2 className="chat-header-title font-display text-[1.0625rem] text-warm-50 tracking-wide select-none">
+            {(() => {
+              const { text, icons } = headerTitle(gameBuddyMode, dinoBuddyMode);
+              return icons ? (
+                <span className="chat-header-persona">
+                  <span className="chat-header-name">{text}</span>
+                  <span className="chat-header-icons" aria-hidden>{icons}</span>
+                </span>
+              ) : (
+                text
+              );
+            })()}
+          </h2>
+          <div className="chat-header-actions flex items-center gap-0.5 shrink-0">
           {messages.length > 0 && (
             <>
-              <button onClick={() => exportConversation(messages, userName, persona)} className="icon-btn" title="Export journal">
+              <button onClick={() => exportConversation(messages, userName, persona, dinoBuddyMode)} className="icon-btn" title="Export journal">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
@@ -390,7 +416,13 @@ export default function Sanctuary() {
               <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
+          </div>
         </div>
+        {importNote && (
+          <div className="import-note" role="status" aria-live="polite">
+            {importNote}
+          </div>
+        )}
       </header>
 
       <input
@@ -401,12 +433,6 @@ export default function Sanctuary() {
         onChange={handleImportJournal}
         className="hidden"
       />
-
-      {importNote && (
-        <div className="import-note" role="status" aria-live="polite">
-          {importNote}
-        </div>
-      )}
 
       <div
         ref={scrollRef}

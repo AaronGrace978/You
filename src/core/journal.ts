@@ -25,10 +25,17 @@ const HEADER_RE = /^\*\*(.+?)\*\*\s*[—–-]\s*\*(.+?)\*\s*$/;
 const KNOWN_FOOTERS = new Set([
   "*Whatever you carry, you can set it down here.*",
   "*🦖 Thanks for hanging out, bro.*",
+  "*🎮 GG. Catch you next session.*",
+  "*🦖🎮 GG. Catch you next session, bro.*",
 ]);
 
 function roleFromName(name: string): "user" | "assistant" {
-  return /\(ai\)/i.test(name) || /dino\s*buddy/i.test(name) ? "assistant" : "user";
+  return /\(ai\)/i.test(name) ||
+    /dino\s*buddy/i.test(name) ||
+    /game\s*buddy/i.test(name) ||
+    /^you$/i.test(name.trim())
+    ? "assistant"
+    : "user";
 }
 
 /** Pull the export date from the `*Exported <weekday>, <date>*` header line. */
